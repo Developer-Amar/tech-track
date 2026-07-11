@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tech Track — Design Showcase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #0B0E14;
+    --panel: #151A24;
+    --panel-2: #1B2130;
+    --dormant: #3A4356;
+    --signal: #E8A33D;
+    --signal-dim: #7A5B2C;
+    --danger: #E85D4A;
+    --text: #E8EAED;
+    --text-dim: #8890A0;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--void);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, .display { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.01em; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  section { padding: 90px 24px; max-width: 920px; margin: 0 auto; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--signal);
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  /* ---------- Reveal on scroll ---------- */
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 500ms ease-out, transform 500ms ease-out; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    min-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    padding: 24px;
+    max-width: none;
+  }
+  .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.55; }
+  .hero-content { position: relative; z-index: 1; max-width: 640px; }
+  .hero h1 {
+    font-size: clamp(36px, 6vw, 60px);
+    font-weight: 700;
+    margin: 0 0 18px;
+    line-height: 1.05;
+    opacity: 0;
+    animation: riseIn 700ms 200ms ease-out forwards;
+  }
+  .hero p {
+    color: var(--text-dim);
+    font-size: 17px;
+    line-height: 1.6;
+    margin: 0 0 34px;
+    opacity: 0;
+    animation: riseIn 700ms 400ms ease-out forwards;
+  }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+  .btn-primary {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    background: var(--signal);
+    color: #1A1204;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 30px;
+    cursor: pointer;
+    transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+    opacity: 0;
+    animation: riseIn 700ms 600ms ease-out forwards;
+  }
+  .btn-primary:hover { transform: scale(1.03); box-shadow: 0 0 28px rgba(232,163,61,0.45); }
+  .btn-primary:active { transform: scale(0.98); }
+
+  /* cursor glow — hero only */
+  .cursor-glow {
+    position: fixed;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(232,163,61,0.10) 0%, transparent 70%);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 0;
+    transition: opacity 200ms;
+  }
+
+  /* ---------- Palette ---------- */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px; }
+  .swatch { border-radius: 10px; overflow: hidden; border: 1px solid var(--panel-2); transition: transform 180ms ease-out; }
+  .swatch:hover { transform: translateY(-3px); }
+  .swatch-color { height: 74px; }
+  .swatch-label { padding: 10px 12px; background: var(--panel); }
+  .swatch-label .name { font-size: 13px; font-weight: 600; }
+  .swatch-label .hex { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+
+  /* ---------- Type ---------- */
+  .type-row { border-top: 1px solid var(--panel-2); padding: 22px 0; display: flex; justify-content: space-between; align-items: baseline; gap: 24px; flex-wrap: wrap; }
+  .type-row .label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); min-width: 90px; }
+  .type-row .sample.display { font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; }
+  .type-row .sample.body { font-family: 'IBM Plex Sans', sans-serif; font-size: 18px; }
+  .type-row .sample.mono { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--signal); }
+
+  /* ---------- Components ---------- */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-2);
+    border-radius: 12px;
+    padding: 22px;
+    transition: transform 180ms ease-out, border-color 180ms ease-out;
+  }
+  .card:hover { transform: translateY(-3px); border-color: var(--signal-dim); }
+  .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .card p { margin: 0; color: var(--text-dim); font-size: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .field label { font-size: 12px; color: var(--text-dim); }
+  .field input {
+    background: var(--void);
+    border: 1px solid var(--dormant);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 150ms;
+  }
+  .field input:focus { border-color: var(--signal); }
+  .field input.shake { animation: shake 220ms; border-color: var(--danger); }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+  .toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+  .toggle-track { width: 44px; height: 24px; background: var(--dormant); border-radius: 999px; position: relative; transition: background 220ms cubic-bezier(.4,0,.2,1); }
+  .toggle-thumb { width: 18px; height: 18px; background: var(--text); border-radius: 50%; position: absolute; top: 3px; left: 3px; transition: left 220ms cubic-bezier(.4,0,.2,1); }
+  .toggle.on .toggle-track { background: var(--signal-dim); }
+  .toggle.on .toggle-thumb { left: 23px; background: var(--signal); }
+
+  /* ---------- Track demo ---------- */
+  .track-demo { display: flex; align-items: center; margin: 30px 0 10px; overflow-x: auto; padding-bottom: 10px; }
+  .track-node-wrap { display: flex; flex-direction: column; align-items: center; position: relative; min-width: 64px; }
+  .track-node {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    border: 2px solid var(--dormant);
+    background: var(--void);
+    color: var(--text-dim);
+    cursor: default;
+    transition: transform 150ms;
+  }
+  .track-node.done { background: var(--signal); border-color: var(--signal); color: #1A1204; }
+  .track-node.current { border-color: var(--signal); color: var(--signal); animation: pulseNode 1.4s ease-in-out infinite; }
+  @keyframes pulseNode { 0%,100% { box-shadow: 0 0 0 0 rgba(232,163,61,0.5); } 50% { box-shadow: 0 0 0 8px rgba(232,163,61,0); } }
+  .track-node.done:hover { transform: scale(1.15); }
+  .track-line { flex: 1; height: 2px; background: var(--dormant); min-width: 30px; }
+  .track-line.done { background: var(--signal); }
+  .track-label { font-size: 10px; color: var(--text-dim); margin-top: 6px; white-space: nowrap; }
+  .tooltip {
+    position: absolute; bottom: 38px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-2); border: 1px solid var(--dormant); padding: 5px 9px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity 150ms;
+  }
+  .track-node-wrap:hover .tooltip { opacity: 1; }
+
+  /* ---------- Loader demo ---------- */
+  .loader-row { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+  .loader-caption { color: var(--text-dim); font-size: 13px; }
+
+  /* ---------- Decode demo ---------- */
+  .decode-box {
+    background: var(--panel); border: 1px solid var(--panel-2); border-radius: 12px;
+    padding: 24px; font-family: 'JetBrains Mono', monospace; font-size: 16px; min-height: 60px;
+    display: flex; align-items: center;
+  }
+  .btn-ghost {
+    margin-top: 14px; background: transparent; border: 1px solid var(--dormant); color: var(--text);
+    padding: 9px 16px; border-radius: 7px; font-family: 'IBM Plex Sans'; font-size: 13px; cursor: pointer;
+    transition: border-color 150ms;
+  }
+  .btn-ghost:hover { border-color: var(--signal); color: var(--signal); }
+
+  /* ---------- Submit microinteraction ---------- */
+  .btn-submit {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--dormant);
+    padding: 12px 22px; border-radius: 8px; font-family: 'IBM Plex Sans'; font-weight: 600; font-size: 14px;
+    cursor: pointer; transition: all 200ms; min-width: 150px;
+  }
+  .btn-submit.running { border-color: var(--signal-dim); color: var(--text-dim); cursor: wait; }
+  .btn-submit.passed { background: var(--signal); border-color: var(--signal); color: #1A1204; transform: scale(1.04); }
+
+  footer { text-align: center; padding: 50px 24px 80px; color: var(--text-dim); font-size: 13px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero h1, .hero p, .btn-primary { animation: none !important; opacity: 1 !important; }
+    .track-node.current { animation: none !important; }
+    .reveal { transition: opacity 200ms !important; transform: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor-glow" id="cursorGlow"></div>
+
+<section class="hero" id="heroSection">
+  <svg class="hero-bg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
+    <g stroke="#3A4356" stroke-width="1.5" fill="none" opacity="0.8">
+      <path d="M120,380 L260,260 L420,300 L560,160 L700,200" stroke-dasharray="3 7">
+        <animate attributeName="stroke-dashoffset" from="0" to="-40" dur="3s" repeatCount="indefinite"/>
+      </path>
+      <path d="M260,260 L340,120 M420,300 L500,420 M560,160 L640,80" stroke-dasharray="3 7">
+        <animate attributeName="stroke-dashoffset" from="0" to="-40" dur="4s" repeatCount="indefinite"/>
+      </path>
+    </g>
+    <g fill="#E8A33D">
+      <circle cx="120" cy="380" r="4"><animate attributeName="opacity" values="0.4;1;0.4" dur="2.6s" repeatCount="indefinite"/></circle>
+      <circle cx="260" cy="260" r="4"><animate attributeName="opacity" values="0.4;1;0.4" dur="3.1s" begin="0.4s" repeatCount="indefinite"/></circle>
+      <circle cx="420" cy="300" r="4"><animate attributeName="opacity" values="0.4;1;0.4" dur="2.8s" begin="0.9s" repeatCount="indefinite"/></circle>
+      <circle cx="560" cy="160" r="4"><animate attributeName="opacity" values="0.4;1;0.4" dur="3.4s" begin="1.2s" repeatCount="indefinite"/></circle>
+      <circle cx="700" cy="200" r="4"><animate attributeName="opacity" values="0.4;1;0.4" dur="2.4s" begin="0.6s" repeatCount="indefinite"/></circle>
+      <circle cx="340" cy="120" r="3"><animate attributeName="opacity" values="0.3;0.9;0.3" dur="3.6s" begin="1.6s" repeatCount="indefinite"/></circle>
+      <circle cx="500" cy="420" r="3"><animate attributeName="opacity" values="0.3;0.9;0.3" dur="2.9s" begin="0.2s" repeatCount="indefinite"/></circle>
+      <circle cx="640" cy="80" r="3"><animate attributeName="opacity" values="0.3;0.9;0.3" dur="3.2s" begin="1.1s" repeatCount="indefinite"/></circle>
+    </g>
+  </svg>
+  <div class="hero-content">
+    <h1>SOLVE. TRAVEL. CODE.</h1>
+    <p>A campus-wide treasure hunt for people who'd rather earn the answer than google it.</p>
+    <button class="btn-primary">Enter the hunt</button>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="eyebrow">01 — Color</div>
+  <h2>The palette</h2>
+  <div class="swatches">
+    <div class="swatch"><div class="swatch-color" style="background:#0B0E14"></div><div class="swatch-label"><div class="name">void</div><div class="hex">#0B0E14</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#151A24"></div><div class="swatch-label"><div class="name">panel</div><div class="hex">#151A24</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#3A4356"></div><div class="swatch-label"><div class="name">dormant</div><div class="hex">#3A4356</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#E8A33D"></div><div class="swatch-label"><div class="name">signal</div><div class="hex">#E8A33D</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#E85D4A"></div><div class="swatch-label"><div class="name">danger</div><div class="hex">#E85D4A</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#E8EAED"></div><div class="swatch-label"><div class="name">text</div><div class="hex">#E8EAED</div></div></div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="eyebrow">02 — Type</div>
+  <h2>Display, body, mono</h2>
+  <div class="type-row"><div class="label">Display</div><div class="sample display">Tech Track</div></div>
+  <div class="type-row"><div class="label">Body</div><div class="sample body">Where shadows fall at noon, seek the tallest spire.</div></div>
+  <div class="type-row"><div class="label">Mono</div><div class="sample mono">CODE: 7X-K294</div></div>
+</section>
+
+<section class="reveal">
+  <div class="eyebrow">03 — Components</div>
+  <h2>Hover states</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Team Falcon</h3>
+      <p>Hover this card — it lifts and its border warms up.</p>
+      <div class="field">
+        <label>Checkpoint code</label>
+        <input id="codeInput" class="mono" placeholder="Try typing anything, then blur">
+      </div>
+      <div style="margin-top:16px;" class="toggle" id="toggleDemo" onclick="this.classList.toggle('on')">
+        <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        <span style="font-size:13px;color:var(--text-dim)">Registration open</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Submit and pass</h3>
+      <p style="margin-bottom:16px;">A code submission running the "signal traveling the track" loader, then a pass bloom.</p>
+      <button class="btn-submit" id="submitBtn" onclick="runSubmitDemo(this)">Submit code</button>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="eyebrow">04 — The Track</div>
+  <h2>Progress, made literal</h2>
+  <p style="color:var(--text-dim); font-size:14px; margin-bottom:6px;">Hover a completed node — this is where the tiebreak timestamp earns its keep.</p>
+  <div class="track-demo">
+    <div class="track-node-wrap"><div class="track-node done">1</div><div class="tooltip">14:02:11</div><div class="track-label">done</div></div>
+    <div class="track-line done"></div>
+    <div class="track-node-wrap"><div class="track-node done">2</div><div class="tooltip">14:11:47</div><div class="track-label">done</div></div>
+    <div class="track-line done"></div>
+    <div class="track-node-wrap"><div class="track-node done">3</div><div class="tooltip">14:19:03</div><div class="track-label">done</div></div>
+    <div class="track-line done"></div>
+    <div class="track-node-wrap"><div class="track-node current">4</div><div class="track-label">you</div></div>
+    <div class="track-line"></div>
+    <div class="track-node-wrap"><div class="track-node">5</div><div class="track-label">·</div></div>
+    <div class="track-line"></div>
+    <div class="track-node-wrap"><div class="track-node">6</div><div class="track-label">·</div></div>
+    <div class="track-line"></div>
+    <div class="track-node-wrap"><div class="track-node">7</div><div class="track-label">·</div></div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="eyebrow">05 — Loading</div>
+  <h2>A signal on the path, not a spinner</h2>
+  <div class="loader-row">
+    <svg width="140" height="40" viewBox="0 0 140 40">
+      <path d="M10,20 Q70,0 130,20" stroke="#3A4356" stroke-width="2" fill="none"/>
+      <circle r="5" fill="#E8A33D">
+        <animateMotion dur="1.3s" repeatCount="indefinite" path="M10,20 Q70,0 130,20"/>
+      </circle>
+    </svg>
+    <span class="loader-caption">Same loader everywhere code is running — dashboard, gameplay, admin.</span>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="eyebrow">06 — Entrance</div>
+  <h2>The riddle decode</h2>
+  <div class="decode-box"><span id="decodeText">Where shadows fall at noon, seek the tallest spire.</span></div>
+  <button class="btn-ghost" onclick="playDecode()">Replay</button>
+</section>
+
+<footer>Tech Track — UI/UX design showcase · built to accompany the design brief</footer>
+
+<script>
+  // Reveal on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Cursor glow — confined to the hero only, per the brief
+  const glow = document.getElementById('cursorGlow');
+  const hero = document.getElementById('heroSection');
+  document.addEventListener('mousemove', (e) => {
+    const r = hero.getBoundingClientRect();
+    const inside = e.clientY >= r.top && e.clientY <= r.bottom;
+    glow.style.opacity = inside ? '1' : '0';
+    glow.style.left = e.clientX + 'px';
+    glow.style.top = e.clientY + 'px';
+  });
+
+  // Input shake on blur (simulating a rejected code) if non-empty and not "7X-K294"
+  const codeInput = document.getElementById('codeInput');
+  codeInput.addEventListener('blur', () => {
+    if (codeInput.value.trim() !== '') {
+      codeInput.classList.remove('shake');
+      void codeInput.offsetWidth;
+      codeInput.classList.add('shake');
+    }
+  });
+
+  // Submit -> running -> passed microinteraction
+  function runSubmitDemo(btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = 'Running…';
+    btn.classList.add('running');
+    setTimeout(() => {
+      btn.classList.remove('running');
+      btn.classList.add('passed');
+      btn.textContent = '✓ Passed — +1 point';
+      setTimeout(() => {
+        btn.classList.remove('passed');
+        btn.textContent = 'Submit code';
+        btn.disabled = false;
+      }, 2200);
+    }, 1100);
+  }
+
+  // Decode / scramble-resolve entrance effect
+  const decodeChars = '!<>-_\\/[]{}=+*^?#';
+  const decodeFinal = 'Where shadows fall at noon, seek the tallest spire.';
+  function playDecode() {
+    const el = document.getElementById('decodeText');
+    let frame = 0;
+    const totalFrames = 24;
+    const timer = setInterval(() => {
+      frame++;
+      const revealCount = Math.floor((frame / totalFrames) * decodeFinal.length);
+      el.textContent = decodeFinal.split('').map((ch, i) => {
+        if (i < revealCount || ch === ' ') return ch;
+        return decodeChars[Math.floor(Math.random() * decodeChars.length)];
+      }).join('');
+      if (frame >= totalFrames) { el.textContent = decodeFinal; clearInterval(timer); }
+    }, 28);
+  }
+  window.addEventListener('load', () => setTimeout(playDecode, 500));
+</script>
+
+</body>
+</html>

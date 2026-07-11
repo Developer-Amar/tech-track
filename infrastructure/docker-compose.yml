@@ -1,0 +1,62 @@
+# =============================================================================
+# Tech Track — Infrastructure: Docker Compose
+# =============================================================================
+# Runs Piston (code-execution engine) behind a Caddy reverse proxy on an
+# Oracle Cloud A1 VM (2 OCPU / 12 GB RAM, Ampere Arch64).
+#
+# Caddy is the ONLY service exposed to the network.  It enforces a shared
+# secret via the X-Piston-Secret header before forwarding to Piston.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Piston — sandboxed code execution engine
+  # ---------------------------------------------------------------------------
+  piston:
+    image: ghcr.io/engineer-man/piston
+    restart: unless-stopped
+    # NOT exposed to the host — only reachable by Caddy on the internal network.
+    expose:
+      - "2000"
+    tmpfs:
+      # Piston writes job files here; tmpfs keeps it fast and auto-cleaned.
+      - /piston/jobs:exec,size=512M
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"        # leave headroom on the 2-OCPU VM
+          memory: 8G         # leave ~4 GB for the OS + Caddy + overhead
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # Caddy — reverse proxy with shared-secret gate
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"   # HTTPS (if you later add a domain + TLS)
+      - "80:80"     # HTTP redirect / health probes
+      - "2001:2001" # Main reverse-proxy port (HTTP, no TLS needed on internal VM)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # TLS certificates, OCSP staples
+      - caddy_config:/config  # Caddy runtime config
+    environment:
+      - PISTON_SHARED_SECRET=${PISTON_SHARED_SECRET}
+    depends_on:
+      - piston
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+
+volumes:
+  caddy_data:
+  caddy_config:

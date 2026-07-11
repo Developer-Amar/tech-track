@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Tech Track — Global Styles
+ * Design tokens are in tailwind.config.js; this file handles
+ * base resets and font imports only.
+ */
+
+/* Google Fonts: Space Grotesk (display), IBM Plex Sans (body), JetBrains Mono (code) */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+@layer base {
+  body {
+    @apply bg-void text-text font-body antialiased;
+  }
+
+  /* Ensure consistent box-sizing */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* Respect reduced motion preferences — UIUX_Design_Brief.md */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
