@@ -1,0 +1,34 @@
+---
+description: Tech Trek core stack and process rules — always active
+alwaysApply: true
+---
+
+# Tech Trek — Core Rules
+
+## Stack (locked — do not substitute)
+- Next.js 14 App Router, TypeScript, Tailwind CSS
+- Supabase (Postgres, Auth with Google provider, Realtime)
+- Judge0 CE via RapidAPI for code execution (hosted, not self-run — never attempt to self-host a judge)
+- Deploy target: Vercel
+
+## Source of truth
+Everything in /docs is authoritative, especially Backend_Schema.md (schema) and
+UIUX_Design_Brief.md (visual/animation direction). If code and docs disagree,
+the docs win — flag the conflict, don't silently pick one.
+
+## Non-negotiables
+- Hidden test cases and the Judge0/RapidAPI key: server-side only, never in
+  client code or client-visible responses.
+- No destructive database or git operations without explicit confirmation first.
+- No new paid service or dependency outside what TRD.md specifies without
+  flagging it first.
+- RLS policies from Backend_Schema.md stay enabled — never disable RLS
+  "to make it easier to test."
+
+## Process
+- Work through Implementation_Plan.md in phase order. Verify a phase before
+  moving to the next.
+- Commit once per completed, verified phase, with a message naming the phase.
+- Small ambiguities not covered by the docs: make the most consistent
+  reasonable call, note it in a comment, keep going. Large ambiguities (data
+  model, auth flow, anything costly to reverse): stop and ask.

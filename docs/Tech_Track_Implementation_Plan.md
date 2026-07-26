@@ -16,8 +16,8 @@ This plan sequences the actual build. It doesn't repeat what's already specified
 - [ ] Create the Supabase project; store keys per `TRD.md` Section 7 in `.env.local`.
 - [ ] Create Google OAuth credentials; configure the `hd=chitkara.edu.in` hint per `TRD.md` Section 2.
 - [ ] Connect the repo to Vercel; confirm a bare "hello world" page deploys successfully.
-- [ ] Provision the Oracle Cloud Always Free VM (Ampere A1), install Docker, self-host Piston per its own repo instructions, and put it behind a reverse proxy with a shared-secret header (`TRD.md` Section 1 and 5).
-- [ ] **Verify:** a local script can hit the Piston health endpoint through the reverse proxy using the shared secret, and cannot reach it without one.
+- [ ] Sign up for RapidAPI (no card required) and subscribe to Judge0 CE's free Basic plan; store the API key as `JUDGE0_API_KEY` (`TRD.md` Section 1 and 5).
+- [ ] **Verify:** a local script can submit a trivial "hello world" snippet to Judge0 via RapidAPI using the API key and get a correct result back, and gets a clear auth error without the key.
 
 ## Phase 1 — Database
 
@@ -50,8 +50,8 @@ This plan sequences the actual build. It doesn't repeat what's already specified
 
 - [ ] Build the Track progress component (per `UIUX_Design_Brief.md`, functional version first).
 - [ ] Build the riddle screen and secret-code entry, validated against `unit_checkpoint_codes`.
-- [ ] Integrate an in-browser code editor (Monaco or CodeMirror) with a C/C++/Python language picker.
-- [ ] Build the submission flow: a server route calls Piston, loops the question's hidden test cases, compares output, and updates `round_progress` and `submissions`. The client never sees hidden test cases or talks to Piston directly.
+- [ ] Integrate an in-browser code editor (Monaco or CodeMirror) with a C/C++/Python/Java language picker.
+- [ ] Build the submission flow: a server route calls Judge0 via RapidAPI, loops the question's hidden test cases, compares output, and updates `round_progress` and `submissions`. The client never sees hidden test cases or talks to Judge0 directly.
 - [ ] Build the Skip flow.
 - [ ] Build the pass/fail states (functional first; the exact microinteractions from the brief come in Phase 6).
 - [ ] **Verify:** as a test unit, play through all configured rounds end to end. Confirm score updates correctly, unlimited retries work, a compile error is handled without crashing the UI, and skip always advances regardless of pass/fail state.
@@ -79,14 +79,14 @@ This plan sequences the actual build. It doesn't repeat what's already specified
 
 - [ ] Write unit tests for scoring logic and the code-validation path.
 - [ ] Write one end-to-end integration test: registration → lock → full event → final score, against a seeded test unit.
-- [ ] Load test: script 15–20 concurrent submissions against the Piston VM; confirm response times hold up against the estimate in `PRD.md` Section 6.
+- [ ] Load test: script 15–20 concurrent submissions against Judge0 via RapidAPI; confirm response times and the free tier's request quota hold up against the estimate in `PRD.md` Section 6.
 - [ ] Run a full dry run with the actual organizing team, on real phones, at an actual campus location if possible.
 - [ ] **Verify:** all of the above pass with no manual workarounds needed.
 
 ## Phase 8 — Deployment Hardening
 
-- [ ] Set up the keep-alive scheduled job (Supabase + Piston health pings), per `TRD.md` Section 8.
-- [ ] Set up a free uptime checker on both the app and the Piston VM.
+- [ ] Set up the Supabase keep-alive scheduled job, per `TRD.md` Section 8.
+- [ ] Set up a free uptime checker on the app.
 - [ ] Audit all environment variables are present in Vercel's production environment, not just local `.env`.
 - [ ] Generate and print the backup code sheet (`GET /api/admin/codes/export`) as an offline fallback for checkpoint staff.
-- [ ] **Verify:** 24–48 hours before event day, confirm both Supabase and the Piston VM are awake and responding.
+- [ ] **Verify:** 24–48 hours before event day, confirm Supabase is awake and responding, and do one live test submission through Judge0 to confirm the RapidAPI key and quota are still good.

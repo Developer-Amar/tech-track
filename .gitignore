@@ -28,9 +28,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# large video assets (replaced by WebGL background)
+public/bg-loop*.mp4
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# infrastructure secrets
-infrastructure/.env

@@ -1,37 +1,213 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/*
- * Tech Track — Global Styles
- * Design tokens are in tailwind.config.js; this file handles
- * base resets and font imports only.
- */
-
-/* Google Fonts: Space Grotesk (display), IBM Plex Sans (body), JetBrains Mono (code) */
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+/* ════════════════════════════════════════
+   THEME DESIGN SYSTEM (ANTIGRAVITY)
+   ════════════════════════════════════════ */
+:root {
+  --bg-dark: #000000;
+  --bg-deep: #050505;
+  --signal-color: #7DF9FF; /* Crystal Blue / Tiffany Blue */
+  --signal-rgb: 125, 249, 255;
+  --accent-purple: #4B0082; /* Deep Indigo */
+  --accent-purple-rgb: 75, 0, 130;
+  --text-primary: #F8FAFC;
+  --text-muted: #94A3B8;
+}
 
 @layer base {
   body {
-    @apply bg-void text-text font-body antialiased;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    background-attachment: fixed;
+    /* Lenis needs this to function correctly sometimes */
+    overscroll-behavior: none;
   }
 
-  /* Ensure consistent box-sizing */
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
+}
 
-  /* Respect reduced motion preferences — UIUX_Design_Brief.md */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-  }
+/* ── LENIS SMOOTH SCROLL OVERRIDES ── */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* ── BACKGROUND VIDEO CONTAINER (Optional, fallback if WebGL not desired) ── */
+.bg-video-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  opacity: 0.15;
+}
+.bg-video-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── HUD VIGNETTE & SCREEN EFFECT ── */
+.hud-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: -8;
+  pointer-events: none;
+  background: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.95) 100%);
+}
+
+.screen-scanline {
+  position: fixed;
+  inset: 0;
+  z-index: -7;
+  pointer-events: none;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg, 
+    rgba(125, 249, 255, 0.01), 
+    rgba(255, 255, 255, 0.01), 
+    rgba(75, 0, 130, 0.02)
+  );
+  background-size: 100% 4px, 6px 100%;
+  opacity: 0.45;
+}
+
+/* ── CORNER BRACKETS FOR CARDS ── */
+.hud-corner-card {
+  position: relative;
+}
+.hud-corner-card::before, .hud-corner-card::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--signal-color);
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+/* Top-Left Bracket */
+.hud-corner-card::before {
+  top: -1px;
+  left: -1px;
+  border-right: none;
+  border-bottom: none;
+}
+/* Bottom-Right Bracket */
+.hud-corner-card::after {
+  bottom: -1px;
+  right: -1px;
+  border-left: none;
+  border-top: none;
+}
+.hud-corner-card:hover::before {
+  width: 20px;
+  height: 20px;
+  box-shadow: -2px -2px 10px rgba(var(--signal-rgb), 0.4);
+}
+.hud-corner-card:hover::after {
+  width: 20px;
+  height: 20px;
+  box-shadow: 2px 2px 10px rgba(var(--signal-rgb), 0.4);
+}
+
+/* ── TRANSLUCENT NEXUS GLASS PANELS ── */
+.glass-panel {
+  background: rgba(10, 10, 15, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(25px);
+  box-shadow: 0 10px 45px -10px rgba(0, 0, 0, 0.7),
+              inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  transition: border-color 0.4s, box-shadow 0.4s, transform 0.4s;
+}
+.glass-panel:hover {
+  border-color: rgba(var(--signal-rgb), 0.3);
+  box-shadow: 0 15px 50px -10px rgba(var(--signal-rgb), 0.1),
+              inset 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-danger {
+  background: rgba(15, 5, 5, 0.6);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  backdrop-filter: blur(25px);
+  box-shadow: 0 10px 45px -10px rgba(0, 0, 0, 0.8);
+}
+
+/* ── PREMIUM FUTURISTIC BUTTONS ── */
+.btn-cyber {
+  position: relative;
+  background: var(--signal-color);
+  color: #000000;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: none;
+  box-shadow: 0 4px 20px rgba(var(--signal-rgb), 0.2);
+}
+.btn-cyber:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(var(--signal-rgb), 0.4);
+  filter: brightness(1.2);
+}
+
+.btn-cyber-outline {
+  background: transparent;
+  color: var(--signal-color);
+  border: 1px solid rgba(var(--signal-rgb), 0.4);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-cyber-outline:hover {
+  background: rgba(var(--signal-rgb), 0.05);
+  border-color: var(--signal-color);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 25px rgba(var(--signal-rgb), 0.15);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--signal-color);
 }

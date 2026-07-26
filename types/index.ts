@@ -114,7 +114,7 @@ export interface TestCase {
 
 // ── Submissions ─────────────────────────────────────────────
 
-export type Language = "c" | "cpp" | "python";
+export type Language = "c" | "cpp" | "python" | "java";
 
 export interface Submission {
   id: string;

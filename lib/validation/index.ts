@@ -10,3 +10,6 @@ export function isChitkaraEmail(email: string): boolean {
 
 /** The super admin email — hardcoded per PRD Section 4. */
 export const SUPER_ADMIN_EMAIL = "amar4594.ece25@chitkara.edu.in";
+
+/** Supported languages for code submissions — must match the DB check constraint. */
+export const SUPPORTED_LANGUAGES = ["c", "cpp", "python", "java"] as const;

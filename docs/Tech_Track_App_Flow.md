@@ -77,7 +77,7 @@ flowchart TD
     F -->|Yes| G[Coding question unlocked]
     G --> H{Attempt or Skip?}
     H -->|Skip| I[0 points, next round]
-    H -->|Attempt| J[Write code - C, C++, or Python]
+    H -->|Attempt| J[Write code - C, C++, Python, or Java]
     J --> K[Run against test cases]
     K --> L{All pass?}
     L -->|No| H
@@ -92,7 +92,7 @@ flowchart TD
 |---|---|---|---|
 | Riddle Screen | Current round | Riddle text, secret-code field | Code check |
 | Code Rejected | Wrong code entered | Error, retry field | Riddle Screen |
-| Question Screen | The coding challenge | Prompt, language picker (C/C++/Python), in-browser editor, one visible sample test case, Run, Submit, Skip | Result screen |
+| Question Screen | The coding challenge | Prompt, language picker (C/C++/Python/Java), in-browser editor, one visible sample test case, Run, Submit, Skip | Result screen |
 | Result — Fail | A test case failed | Which sample check failed, Retry / Skip | Question Screen, or next round if skipped |
 | Result — Pass | All hidden tests passed | "+1 point" confirmation | Next Riddle |
 | Completion / Leaderboard | End state | Final score, live leaderboard | — |

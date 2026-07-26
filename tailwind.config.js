@@ -7,20 +7,17 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Tech Track design tokens — UIUX_Design_Brief.md
-        void: "#0B0E14",
-        panel: "#151A24",
-        dormant: "#3A4356",
-        signal: "#E8A33D",
-        danger: "#E85D4A",
-        text: "#E8EAED",
+        // Red & Carbon-Black modern tech tokens
+        void: "#06080E",
+        panel: "rgba(15, 18, 27, 0.65)",
+        dormant: "#94A3B8",
+        signal: "#FF1E56",
+        danger: "#EF4444",
+        text: "#F8FAFC",
       },
       fontFamily: {
-        // Display: headlines, section titles
         display: ['"Space Grotesk"', "sans-serif"],
-        // Body: readable text, riddles, instructions
-        body: ['"IBM Plex Sans"', "sans-serif"],
-        // Mono: code editor, secret codes, timestamps, admin data
+        body: ['"Inter"', "sans-serif"],
         mono: ['"JetBrains Mono"', "monospace"],
       },
     },

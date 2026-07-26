@@ -20,10 +20,9 @@ This document defines *how* Tech Track gets built. It assumes everything in the 
 | Auth | Supabase Auth, Google provider | Ties directly into Postgres row-level security |
 | Database | Supabase Postgres | |
 | Realtime | Supabase Realtime | Live leaderboard, live invite status |
-| Code execution | Self-hosted Piston (Docker) | C, C++, Python |
+| Code execution | Judge0 CE via RapidAPI (hosted, not self-run) | C, C++, Python, Java |
 | Hosting — app | Vercel | Auto-deploy from GitHub |
-| Hosting — judge | Oracle Cloud "Always Free" VM (Ampere A1, 2 OCPU/12GB) | Dedicated to Piston only |
-| Reverse proxy — judge VM | Caddy or Nginx + shared-secret header | Stops the execution endpoint being publicly abusable |
+| Judge hosting | None needed — Judge0 runs on RapidAPI's infrastructure, not ours | No card, no VM, no container to keep warm |
 
 ## 2. System Architecture
 
@@ -32,7 +31,7 @@ flowchart LR
     U[Browser] -->|1. Sign in| G[Google OAuth - Chitkara Workspace]
     G -->|2. Token + email| V[Next.js on Vercel]
     V <-->|Auth, data, realtime| S[(Supabase)]
-    V -->|3. Code execution, shared secret| P[Piston on Oracle VM]
+    V -->|3. Code execution, RapidAPI key| P[Judge0 CE via RapidAPI]
 ```
 
 The domain restriction happens twice: once as a UX hint (Google's `hd` parameter pre-filters the login screen to `chitkara.edu.in`), and once as a hard server-side check on the returned email after login. The `hd` hint alone is not a security control — only the server-side check is.
@@ -125,7 +124,7 @@ create table public.submissions (
   unit_id uuid not null references public.units(id),
   question_id uuid not null references public.coding_questions(id),
   code text not null,
-  language text not null check (language in ('c','cpp','python')),
+  language text not null check (language in ('c','cpp','python','java')),
   passed boolean not null default false,
   attempt_number int not null,
   submitted_at timestamptz not null default now()
@@ -195,7 +194,7 @@ create table public.event_settings (
 | Units | `POST /api/units/invite` | Invite a member by email |
 | Units | `POST /api/units/respond` | Accept / decline an invite |
 | Event | `POST /api/event/validate-code` | Check a submitted secret code |
-| Event | `POST /api/event/submit` | Run code via Piston, check test cases |
+| Event | `POST /api/event/submit` | Run code via Judge0, check test cases |
 | Event | `POST /api/event/skip` | Skip the current round |
 | Proctoring | `POST /api/proctoring/log` | Log a tab-switch / blur event |
 | Admin | CRUD `/api/admin/riddles` | Manage riddles |
@@ -212,13 +211,24 @@ create table public.event_settings (
 | Staff | `GET /api/staff/checkpoint-code` | Look up a specific unit's code at their checkpoint |
 | Super Admin | `POST /api/admin/promote` | Grant / revoke Admin role |
 
-## 5. Code Execution (Piston) Integration
+## 5. Code Execution (Judge0) Integration
 
-- Piston's public API isn't usable for this (restricted since Feb 2026) — we call our own self-hosted instance directly.
-- Explicit resource limits, set per request rather than relying on Piston's defaults: `run_timeout` ~5s, `compile_timeout` ~10s, `memory_limit` ~128–256MB.
+- Judge0 CE, accessed through RapidAPI, not self-hosted. Piston was the original plan, but it requires `--privileged` container mode to build its sandboxes — a hard requirement in its own `docker-compose.yaml` — and every card-free hosting option available to us blocks privileged containers as a platform-wide security rule, not a tier limitation. Judge0 sidesteps this entirely: it runs on RapidAPI's own infrastructure, so their sandboxing is their problem, not ours.
+- Server route calls Judge0's `submissions` endpoint with the source code, a `language_id`, and stdin; `wait=true` for a synchronous response given our low volume, rather than polling. Our four supported languages map to these Judge0 IDs:
+
+  | Our value | Judge0 language | `language_id` |
+  |---|---|---|
+  | `c` | C (GCC 9.2.0) | 50 |
+  | `cpp` | C++ (GCC 9.2.0) | 54 |
+  | `python` | Python (3.8.1) | 71 |
+  | `java` | Java (OpenJDK 13.0.1) | 62 |
+
+  These have been stable in Judge0 CE for years, but worth a quick cross-check against `GET /languages` on first integration in case the RapidAPI-hosted instance has since added newer compiler versions under different IDs.
+- The `X-RapidAPI-Key` lives server-side only, in `JUDGE0_API_KEY` — the client never talks to Judge0 directly.
 - Test cases are checked **server-side only** — hidden test cases and expected outputs never reach the browser, or a participant could just read them from devtools.
 - All hidden test cases must pass for the round to award a point; any fail lets the participant retry or skip. Every attempt is logged as its own `submissions` row (supports unlimited retries and gives a full attempt history).
 - Codes in `unit_checkpoint_codes` are generated automatically for every (unit × checkpoint) pair the moment registration closes — not typed in by hand. At 10–15 units × ~10 checkpoints that's 100–150 codes; Admin can export a printable sheet as a backup for checkpoint staff.
+- RapidAPI's free tier for Judge0 has its own request quota — confirm the current number when signing up, and treat the Week 8 load test as the real check on whether it covers event-day volume comfortably.
 
 ## 6. Security
 
@@ -229,10 +239,10 @@ create table public.event_settings (
   - `notifications` — visible only to the target unit's members.
   - `announcements` — readable by all authenticated users.
   - `audit_log` and admin content tables — admin/super_admin only.
-- **Judge isolation:** no outgoing network from submitted code, per-submission CPU/memory/time caps, separate unprivileged user per run (Piston + Isolate).
-- **Judge exposure:** the Oracle VM's Piston port is not public — reachable only via the reverse proxy with a shared-secret header known only to the Vercel backend.
-- **Rate limiting** on the submit/validate-code endpoints to prevent scripted abuse.
-- **Secrets:** service-role keys and the Piston shared secret live server-side only, never in the client bundle.
+- **Judge isolation:** handled entirely by Judge0/RapidAPI's own infrastructure — no outgoing network, per-submission CPU/memory/time caps, and sandbox teardown all happen on their side, not ours.
+- **Judge access:** our RapidAPI key is the only thing standing between our server and Judge0's API — treat it exactly like the Supabase service-role key.
+- **Rate limiting** on the submit/validate-code endpoints to prevent scripted abuse (also protects our RapidAPI request quota).
+- **Secrets:** the Supabase service-role key and the RapidAPI key live server-side only, never in the client bundle.
 
 ## 7. Environment Variables
 
@@ -241,26 +251,26 @@ create table public.event_settings (
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Client-side Supabase key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only, elevated access |
-| `PISTON_API_URL` | Internal URL of the self-hosted judge |
-| `PISTON_SHARED_SECRET` | Auth header between Vercel and the judge VM |
+| `JUDGE0_API_URL` | Judge0 CE's RapidAPI endpoint |
+| `JUDGE0_API_KEY` | RapidAPI key, sent as `X-RapidAPI-Key` on every request |
 | `GOOGLE_HD_DOMAIN` | `chitkara.edu.in`, passed as the OAuth `hd` hint |
 
 ## 8. Deployment
 
 - **App:** Vercel, connected to the GitHub repo, auto-deploys `main`, preview deployments per pull request.
-- **Judge VM:** Docker Compose running Piston behind the reverse proxy; restart policy set to survive VM reboots.
-- **Keep-alive:** a scheduled job (Vercel Cron or a GitHub Action) pings both Supabase and the Piston health endpoint every few days, addressing the auto-pause / idle-reclaim risks noted in the PRD.
+- **Judge service:** nothing to deploy — Judge0 is a hosted API call away, not infrastructure we run.
+- **Keep-alive:** just Supabase now. A ping every few days is enough to stop its 7-day inactivity pause; double-check it's awake 24-48 hours before event day.
 
 ## 9. Testing Strategy
 
 - Unit tests for scoring and code-validation logic.
 - One end-to-end integration test covering registration → lock → event → final score, against a seeded test unit.
-- Load test in Week 8: simulate 15–20 concurrent submissions against the Piston VM to validate the capacity estimate in the PRD before event day.
+- Load test in Week 8: simulate 15–20 concurrent submissions against Judge0 via RapidAPI to confirm the free tier's request quota and response times hold up for event-day volume — this replaces the old Piston-VM capacity estimate entirely, since the constraint now is RapidAPI's rate limit, not compute.
 
 ## 10. Monitoring
 
 - Vercel's built-in function logs for errors — sufficient at this scale, no need for a paid error-tracking add-on.
-- A free uptime checker (e.g., UptimeRobot) pinging the app and the judge VM's health endpoint.
+- A free uptime checker (e.g., UptimeRobot) pinging the app itself. Judge0's uptime is RapidAPI's responsibility, not something we need to monitor separately.
 
 ## 11. Project Structure
 
@@ -273,7 +283,7 @@ create table public.event_settings (
   /api/...            # route handlers matching Section 4
 /lib
   /supabase           # client + server helpers
-  /piston             # judge client wrapper
+  /judge0             # Judge0 API client wrapper
   /validation
 /components
 /types

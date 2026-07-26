@@ -1,9 +1,0 @@
-/**
- * Placeholder for shared UI components.
- * Components are built as needed in each phase:
- * - Phase 2: Auth components (sign-in button, profile form)
- * - Phase 3: Registration components (solo/team forms, invite banner)
- * - Phase 4: Event components (Track progress bar, code editor, riddle card)
- * - Phase 5: Admin components (data tables, toggles, forms)
- * - Phase 6: Decorative components (node-field background, cursor glow)
- */

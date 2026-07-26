@@ -129,7 +129,7 @@ create table public.submissions (
   unit_id uuid not null references public.units(id),
   checkpoint_id uuid not null references public.checkpoints(id),
   code text not null,
-  language text not null check (language in ('c','cpp','python')),
+  language text not null check (language in ('c','cpp','python','java')),
   passed boolean not null default false,
   attempt_number int not null,
   submitted_at timestamptz not null default now()
@@ -509,3 +509,31 @@ create index idx_staff_assignments_user_id on public.checkpoint_staff_assignment
 - One `riddles` row and one `coding_questions` row (with its `test_cases`) per checkpoint.
 - `checkpoint_staff_assignments` linking each volunteer's `users` row to their checkpoint(s) — do this once staff have signed in at least once, so their `users.id` exists.
 - Nothing needs seeding for `units` / `unit_members` / codes — those only come into existence through real registrations and `close_registration()`.
+
+## 8. Data API Grants (addendum — required, run this)
+
+Supabase changed a default: as of May 30, 2026, new projects no longer auto-expose tables to the Data API just because RLS is enabled. Without explicit grants, every query fails with a permissions error even when the RLS policies above are perfectly correct. Run this once, right after Section 2-6:
+
+```sql
+-- Nothing in Tech Track is accessible before sign-in, so anon gets nothing.
+-- authenticated gets exactly what each table's RLS policies already scope down.
+grant usage on schema public to authenticated;
+
+grant select, update on public.users to authenticated;
+grant select, insert, update on public.units to authenticated;
+grant select, insert, update on public.unit_members to authenticated;
+grant select on public.checkpoints to authenticated;
+grant select on public.riddles to authenticated;
+grant select on public.checkpoint_staff_assignments to authenticated;
+grant select on public.unit_checkpoint_codes to authenticated;
+grant select on public.coding_questions to authenticated;
+grant select on public.test_cases to authenticated;
+grant select, insert on public.submissions to authenticated;
+grant select on public.round_progress to authenticated;
+grant select, insert on public.proctoring_events to authenticated;
+grant select on public.notifications to authenticated;
+grant select on public.announcements to authenticated;
+grant select on public.audit_log to authenticated;
+```
+
+Content-management writes (riddles, questions, checkpoints, disqualification, point overrides, `close_registration()`) go through server routes using the service-role key, which bypasses grants and RLS alike — so admin-only tables intentionally don't get a broad `authenticated` write grant here. If Phase 1 testing turns up a PostgREST permission error on a path this list didn't anticipate, add the specific grant rather than widening these.
