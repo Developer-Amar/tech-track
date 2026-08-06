@@ -2,19 +2,45 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 /**
- * POST /api/admin/users/manage
- *
- * Handles destructive user management operations. Super Admin only.
+ * GET  /api/admin/users/manage  → List all blocked emails
+ * POST /api/admin/users/manage  → Destructive user management
  *
  * Actions:
  *  - "delete"  → Permanently remove a user (they can re-register)
  *  - "block"   → Permanently remove + ban a user (cannot re-register)
+ *  - "unblock" → Remove an email from the blocked list
  *  - "purge"   → Delete ALL users except the primary super admin
  *
- * Body: { action, user_id?, reason?, confirmation? }
+ * Body: { action, user_id?, email?, reason?, confirmation? }
  */
 
 const PROTECTED_SUPERADMIN_EMAIL = "amar4594.ece25@chitkara.edu.in";
+
+// ── GET: List all blocked emails ──
+export async function GET() {
+  const supabase = createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user)
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "super_admin") {
+    return NextResponse.json({ error: "Super Admin only" }, { status: 403 });
+  }
+
+  const admin = createAdminClient();
+  const { data: blocked } = await admin
+    .from("blocked_emails")
+    .select("id, email, reason, blocked_at")
+    .order("blocked_at", { ascending: false });
+
+  return NextResponse.json({ blocked: blocked ?? [] });
+}
 
 export async function POST(request: Request) {
   // ── Auth + role check ──
@@ -39,6 +65,7 @@ export async function POST(request: Request) {
   let body: {
     action: string;
     user_id?: string;
+    email?: string;
     reason?: string;
     confirmation?: string;
   };
@@ -203,6 +230,41 @@ export async function POST(request: Request) {
       message: `Purged ${deleted} users`,
       deleted,
       errors: errors.length > 0 ? errors : undefined,
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // ACTION: UNBLOCK — Remove an email from the blocked list
+  // ════════════════════════════════════════════════════════════════
+  if (body.action === "unblock") {
+    if (!body.email)
+      return NextResponse.json(
+        { error: "email required" },
+        { status: 400 }
+      );
+
+    const { error: unblockError } = await admin
+      .from("blocked_emails")
+      .delete()
+      .eq("email", body.email);
+
+    if (unblockError) {
+      return NextResponse.json(
+        { error: unblockError.message },
+        { status: 500 }
+      );
+    }
+
+    // Audit log
+    await admin.from("audit_log").insert({
+      actor_id: user.id,
+      action_type: "unblock_user",
+      action_detail: { email: body.email },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `${body.email} unblocked`,
     });
   }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash2, Ban, AlertTriangle, Skull } from "lucide-react";
+import { Trash2, Ban, AlertTriangle, Skull, ShieldOff, ChevronDown, ChevronRight } from "lucide-react";
 
 type User = {
   id: string;
@@ -24,6 +24,13 @@ type ConfirmAction = {
   userEmail?: string;
 };
 
+type BlockedEmail = {
+  id: string;
+  email: string;
+  reason: string | null;
+  blocked_at: string;
+};
+
 export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,9 +40,13 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
   const [purgeText, setPurgeText] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [blockedEmails, setBlockedEmails] = useState<BlockedEmail[]>([]);
+  const [showBlocked, setShowBlocked] = useState(false);
+  const [unblocking, setUnblocking] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
+    if (isSuperAdmin) fetchBlocked();
   }, []);
 
   function fetchUsers() {
@@ -87,8 +98,9 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
       if (!res.ok) {
         alert(`Error: ${data.error}`);
       } else {
-        // Refresh user list
+        // Refresh user list + blocked list
         fetchUsers();
+        if (isSuperAdmin) fetchBlocked();
       }
     } catch {
       alert("Network error");
@@ -96,6 +108,34 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
       setActionLoading(false);
       setConfirm(null);
       setPurgeText("");
+    }
+  }
+
+  function fetchBlocked() {
+    fetch("/api/admin/users/manage")
+      .then((r) => r.json())
+      .then((d) => setBlockedEmails(d.blocked ?? []))
+      .catch(() => {});
+  }
+
+  async function unblockEmail(email: string) {
+    setUnblocking(email);
+    try {
+      const res = await fetch("/api/admin/users/manage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unblock", email }),
+      });
+      if (res.ok) {
+        setBlockedEmails((prev) => prev.filter((b) => b.email !== email));
+      } else {
+        const data = await res.json();
+        alert(`Error: ${data.error}`);
+      }
+    } catch {
+      alert("Network error");
+    } finally {
+      setUnblocking(null);
     }
   }
 
@@ -225,6 +265,53 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
           )}
         </div>
       </div>
+
+      {/* ── Blocked Emails Panel ── */}
+      {isSuperAdmin && blockedEmails.length > 0 && (
+        <div className="rounded-xl border border-red-500/15 bg-red-500/[0.02] overflow-hidden">
+          <button
+            onClick={() => setShowBlocked(!showBlocked)}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-red-500/5 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Ban className="w-4 h-4 text-red-400/70" />
+              <span className="text-red-400/80 text-[10px] font-mono uppercase tracking-widest font-semibold">
+                BLOCKED EMAILS ({blockedEmails.length})
+              </span>
+            </div>
+            {showBlocked ? (
+              <ChevronDown className="w-4 h-4 text-red-400/50" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-red-400/50" />
+            )}
+          </button>
+          {showBlocked && (
+            <div className="border-t border-red-500/10 px-4 py-3 space-y-2">
+              {blockedEmails.map((b) => (
+                <div
+                  key={b.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-red-500/10 bg-void/40 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-red-400/80 font-mono text-xs truncate">{b.email}</p>
+                    <p className="text-dormant/50 text-[9px] font-mono">
+                      {b.reason || "No reason"} · {new Date(b.blocked_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => unblockEmail(b.email)}
+                    disabled={unblocking === b.email}
+                    className="flex items-center gap-1 shrink-0 rounded px-2.5 py-1 text-[9px] font-mono uppercase tracking-wider border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/15 hover:border-emerald-500/40 hover:text-emerald-400 transition-all disabled:opacity-40"
+                  >
+                    <ShieldOff className="w-3 h-3" />
+                    {unblocking === b.email ? "..." : "Unblock"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── User rows ── */}
       <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
