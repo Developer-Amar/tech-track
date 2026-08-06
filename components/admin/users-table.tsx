@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Trash2, Ban, AlertTriangle, Skull } from "lucide-react";
 
 type User = {
   id: string;
@@ -16,19 +17,34 @@ type User = {
   unit: { unit_name: string; unit_type: string; status: string } | null;
 };
 
+type ConfirmAction = {
+  type: "delete" | "block" | "purge";
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+};
+
 export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
+  const [purgeText, setPurgeText] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  function fetchUsers() {
+    setLoading(true);
     fetch("/api/admin/users")
       .then((r) => r.json())
       .then((d) => setUsers(d.users ?? []))
       .finally(() => setLoading(false));
-  }, []);
+  }
 
   const filtered = users.filter(
     (u) =>
@@ -51,10 +67,141 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
     setSaving(null);
   }
 
+  async function executeAction() {
+    if (!confirm) return;
+    setActionLoading(true);
+
+    try {
+      const body: Record<string, string> = { action: confirm.type };
+      if (confirm.userId) body.user_id = confirm.userId;
+      if (confirm.type === "purge") body.confirmation = purgeText;
+
+      const res = await fetch("/api/admin/users/manage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(`Error: ${data.error}`);
+      } else {
+        // Refresh user list
+        fetchUsers();
+      }
+    } catch {
+      alert("Network error");
+    } finally {
+      setActionLoading(false);
+      setConfirm(null);
+      setPurgeText("");
+    }
+  }
+
   if (loading) return <p className="text-dormant text-sm font-mono animate-pulse uppercase tracking-widest">[Loading player list...]</p>;
 
   return (
     <div className="space-y-4 text-left">
+      {/* ── Confirmation Modal Overlay ── */}
+      {confirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-danger/30 bg-[#0a0a0a] p-6 shadow-[0_0_40px_rgba(239,68,68,0.15)]">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`rounded-full p-2 ${confirm.type === "purge" ? "bg-red-900/40" : "bg-danger/10"}`}>
+                {confirm.type === "purge" ? (
+                  <Skull className="w-6 h-6 text-red-500" />
+                ) : confirm.type === "block" ? (
+                  <Ban className="w-6 h-6 text-red-500" />
+                ) : (
+                  <Trash2 className="w-6 h-6 text-red-500" />
+                )}
+              </div>
+              <h3 className="font-display text-xl font-bold text-white uppercase tracking-wider">
+                {confirm.type === "purge"
+                  ? "PURGE ALL USERS"
+                  : confirm.type === "block"
+                  ? "BLOCK USER"
+                  : "REMOVE USER"}
+              </h3>
+            </div>
+
+            {confirm.type === "purge" ? (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+                  <p className="text-red-400 text-xs font-mono flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    DANGER ZONE: This will permanently delete ALL registered users
+                    and their teams, submissions, and progress data. Only the
+                    primary super admin account will be preserved.
+                  </p>
+                </div>
+                <p className="text-dormant text-xs font-mono">
+                  Type <span className="text-red-400 font-bold">PURGE</span> to confirm:
+                </p>
+                <input
+                  type="text"
+                  value={purgeText}
+                  onChange={(e) => setPurgeText(e.target.value)}
+                  placeholder="Type PURGE here..."
+                  className="w-full rounded-lg border border-red-500/30 bg-void/60 px-4 py-2.5 text-red-400 font-mono text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/30 transition-all placeholder:text-dormant/30"
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-text/80 text-sm font-body">
+                  {confirm.type === "block" ? (
+                    <>
+                      Are you sure you want to <span className="text-red-400 font-bold">permanently block</span>{" "}
+                      <span className="text-white font-semibold">{confirm.userName}</span>?
+                      They will be removed and can <span className="text-red-400 font-bold">never register again</span>.
+                    </>
+                  ) : (
+                    <>
+                      Are you sure you want to <span className="text-red-400 font-bold">permanently remove</span>{" "}
+                      <span className="text-white font-semibold">{confirm.userName}</span>?
+                      All their data will be deleted. They can re-register.
+                    </>
+                  )}
+                </p>
+                <p className="text-dormant font-mono text-[10px] truncate">{confirm.userEmail}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setConfirm(null);
+                  setPurgeText("");
+                }}
+                disabled={actionLoading}
+                className="flex-1 rounded-lg border border-dormant/20 bg-void/40 px-4 py-2.5 text-dormant text-xs font-mono uppercase tracking-wider hover:border-dormant/40 hover:text-text transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeAction}
+                disabled={
+                  actionLoading ||
+                  (confirm.type === "purge" && purgeText !== "PURGE")
+                }
+                className="flex-1 rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2.5 text-red-400 text-xs font-mono uppercase tracking-wider hover:bg-red-500/20 hover:text-red-300 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {actionLoading
+                  ? "Processing..."
+                  : confirm.type === "purge"
+                  ? "EXECUTE PURGE"
+                  : confirm.type === "block"
+                  ? "BLOCK FOREVER"
+                  : "DELETE USER"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Search + Purge header ── */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
         <input
           type="text"
@@ -63,11 +210,23 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
           placeholder="Filter players by name, email, or roll no..."
           className="w-full sm:flex-1 rounded-lg border border-signal/20 bg-void/50 px-4 py-2.5 text-text font-body text-sm focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal/30 transition-all duration-300"
         />
-        <span className="rounded bg-void/60 border border-dormant/15 px-3 py-2 text-dormant text-xs font-mono tracking-widest whitespace-nowrap font-semibold">
-          PLAYERS: {filtered.length} TOTAL
-        </span>
+        <div className="flex gap-2 items-center">
+          <span className="rounded bg-void/60 border border-dormant/15 px-3 py-2 text-dormant text-xs font-mono tracking-widest whitespace-nowrap font-semibold">
+            PLAYERS: {filtered.length} TOTAL
+          </span>
+          {isSuperAdmin && (
+            <button
+              onClick={() => setConfirm({ type: "purge" })}
+              className="flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-red-400 text-[10px] font-mono uppercase tracking-wider hover:bg-red-500/15 hover:border-red-500/50 transition-all whitespace-nowrap"
+            >
+              <Skull className="w-3.5 h-3.5" />
+              PURGE ALL
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* ── User rows ── */}
       <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
         {filtered.map((u) => (
           <div key={u.id} className="rounded-xl border border-dormant/15 bg-void/30 relative overflow-hidden transition-all duration-300 hover:border-signal/30">
@@ -146,25 +305,67 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
                 </div>
 
                 {isSuperAdmin && (
-                  <div className="mt-4 pt-4 border-t border-dormant/10">
-                    <p className="text-dormant text-[9px] font-mono uppercase tracking-widest mb-2 font-semibold">MODIFY USER ROLE</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {["participant", "checkpoint_staff", "admin", "super_admin"].map((role) => (
-                        <button
-                          key={role}
-                          onClick={() => updateRole(u.id, role)}
-                          disabled={saving === u.id || u.role === role}
-                          className={`rounded px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-all border ${
-                            u.role === role
-                              ? "bg-signal/25 border-signal text-signal shadow-[0_0_8px_rgba(255,30,86,0.15)]"
-                              : "bg-void border-dormant/20 text-dormant hover:border-dormant/40 hover:text-text"
-                          } disabled:opacity-50`}
-                        >
-                          {role.replace("_", " ")}
-                        </button>
-                      ))}
+                  <>
+                    {/* Role modification */}
+                    <div className="mt-4 pt-4 border-t border-dormant/10">
+                      <p className="text-dormant text-[9px] font-mono uppercase tracking-widest mb-2 font-semibold">MODIFY USER ROLE</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {["participant", "checkpoint_staff", "admin", "super_admin"].map((role) => (
+                          <button
+                            key={role}
+                            onClick={() => updateRole(u.id, role)}
+                            disabled={saving === u.id || u.role === role}
+                            className={`rounded px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-all border ${
+                              u.role === role
+                                ? "bg-signal/25 border-signal text-signal shadow-[0_0_8px_rgba(255,30,86,0.15)]"
+                                : "bg-void border-dormant/20 text-dormant hover:border-dormant/40 hover:text-text"
+                            } disabled:opacity-50`}
+                          >
+                            {role.replace("_", " ")}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+
+                    {/* Destructive actions — hidden for super_admin users */}
+                    {u.role !== "super_admin" && (
+                      <div className="mt-4 pt-4 border-t border-red-500/10">
+                        <p className="text-red-400/60 text-[9px] font-mono uppercase tracking-widest mb-2 font-semibold">
+                          DANGER ZONE
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          <button
+                            onClick={() =>
+                              setConfirm({
+                                type: "delete",
+                                userId: u.id,
+                                userName: u.name,
+                                userEmail: u.email,
+                              })
+                            }
+                            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider border border-red-500/20 bg-red-500/5 text-red-400/80 hover:bg-red-500/15 hover:border-red-500/40 hover:text-red-400 transition-all"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Remove User
+                          </button>
+                          <button
+                            onClick={() =>
+                              setConfirm({
+                                type: "block",
+                                userId: u.id,
+                                userName: u.name,
+                                userEmail: u.email,
+                              })
+                            }
+                            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider border border-red-700/30 bg-red-900/10 text-red-500/80 hover:bg-red-900/20 hover:border-red-700/50 hover:text-red-500 transition-all"
+                          >
+                            <Ban className="w-3 h-3" />
+                            Block Forever
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

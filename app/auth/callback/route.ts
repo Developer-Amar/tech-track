@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /**
  * OAuth callback handler.
@@ -57,6 +58,20 @@ export async function GET(request: Request) {
     // Sign them out immediately — they shouldn't have a session
     await supabase.auth.signOut();
     return NextResponse.redirect(`${origin}/?error=domain`);
+  }
+
+  // ── Blocked email check ────────────────────────────────────────────────
+  // Uses admin client because blocked_emails has no RLS policies for anon.
+  const adminClient = createAdminClient();
+  const { data: blocked } = await adminClient
+    .from("blocked_emails")
+    .select("email")
+    .eq("email", user.email!)
+    .single();
+
+  if (blocked) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(`${origin}/?error=blocked`);
   }
 
   // ── Check if profile is complete ──────────────────────────────────────
