@@ -314,7 +314,7 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
       )}
 
       {/* ── User rows ── */}
-      <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+      <div className="space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-dormant/20 hover:scrollbar-thumb-dormant/40">
         {filtered.map((u) => (
           <div key={u.id} className="rounded-xl border border-dormant/15 bg-void/30 relative overflow-hidden transition-all duration-300 hover:border-signal/30">
             <button
