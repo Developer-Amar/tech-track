@@ -1,0 +1,26 @@
+name: Supabase Keep-Alive & Health Ping
+
+on:
+  schedule:
+    # Runs every 3 days at 06:00 UTC (11:30 AM IST)
+    - cron: '0 6 */3 * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  ping-health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Tech Trek Health & Keep Supabase Active
+        run: |
+          echo "Firing keep-alive heartbeat to Tech Trek production..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" https://tech-track-flame.vercel.app/api/health)
+          echo "$RESPONSE"
+          
+          # Extract HTTP status code
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ Heartbeat successful! Supabase DB query executed successfully."
+          else
+            echo "❌ Heartbeat failed with status $HTTP_STATUS!"
+            exit 1
+          fi
