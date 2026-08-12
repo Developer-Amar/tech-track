@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CheckpointCodesPanel from "@/components/checkpoint-codes-panel";
+import BarcodeScanner from "@/components/barcode-scanner";
 import ProctoringAlerts from "@/components/admin/proctoring-alerts";
 import SignOutButton from "@/components/sign-out-button";
 
@@ -59,8 +60,17 @@ export default async function StaffPage() {
         <div className="glass-panel border-signal/20 bg-signal/5 p-5 mb-6 relative overflow-hidden rounded-2xl">
           <div className="absolute top-0 right-0 w-8 h-8 bg-signal/5 rounded-bl-full pointer-events-none" />
           <p className="text-text text-sm font-body leading-relaxed">
-            <strong>CHECKPOINT PROTOCOL:</strong> When a team arrives physically at your checkpoint station, verify their identity, search their team name below, and read them the secret code for the correct round.
+            <strong>CHECKPOINT PROTOCOL:</strong> When a team arrives physically at your checkpoint station, scan their barcode or verify their identity, search their team name below, and read them the secret code for the correct round.
           </p>
+        </div>
+
+        {/* Barcode Scanner */}
+        <div className="glass-panel rounded-2xl p-6 mb-6">
+          <h3 className="font-display text-lg font-bold text-text uppercase mb-3 tracking-wider flex items-center gap-2">
+            <span className="text-signal">◆</span> BARCODE SCANNER
+          </h3>
+          <p className="text-dormant text-xs font-mono mb-4">Scan an event pass barcode or type the 8-character code to look up a participant.</p>
+          <BarcodeScanner />
         </div>
 
         {/* Codes panel display */}
