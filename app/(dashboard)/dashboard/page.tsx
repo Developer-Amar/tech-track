@@ -9,6 +9,7 @@ import TeamRoster from "@/components/team-roster";
 import LockedStatus from "@/components/locked-status";
 import BentoCard from "@/components/bento-card";
 import KineticText from "@/components/kinetic-text";
+import DownloadablePass from "@/components/downloadable-pass";
 import { User, Activity, AlertCircle } from "lucide-react";
 
 /**
@@ -24,7 +25,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("name, email, role")
+    .select("name, email, role, pass_code, avatar_url, mobile_number, roll_no, branch, semester")
     .eq("id", user.id)
     .single();
 
@@ -266,6 +267,26 @@ export default async function DashboardPage() {
                     ? "Ensure registration is locked to initialize verification access."
                     : "The hunt begins once the organizers start the countdown clock."}
                 </p>
+              </BentoCard>
+            )}
+
+            {/* Download Event Pass — shown when locked */}
+            {unitData?.locked && profile.pass_code && (
+              <BentoCard delay={0.45} glowColor="purple" className="p-2">
+                <div className="text-center mb-2 pt-4">
+                  <span className="font-mono text-[9px] uppercase tracking-widest text-[#7DF9FF] font-semibold">YOUR EVENT PASS</span>
+                  <h3 className="font-display text-xl font-bold text-white uppercase mt-1">DOWNLOAD & SAVE</h3>
+                </div>
+                <DownloadablePass
+                  name={profile.name}
+                  email={profile.email}
+                  avatarUrl={profile.avatar_url ?? undefined}
+                  mobileNumber={profile.mobile_number ?? ""}
+                  rollNo={profile.roll_no ?? ""}
+                  branch={profile.branch ?? ""}
+                  semester={String(profile.semester ?? "")}
+                  passCode={profile.pass_code}
+                />
               </BentoCard>
             )}
           </div>
