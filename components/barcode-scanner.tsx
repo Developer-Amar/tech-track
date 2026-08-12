@@ -4,9 +4,9 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 
 /* ═══════════════════════════════════════════════════════════════════
-   BARCODE SCANNER
-   Camera-based barcode scanner for checkpoint staff & admin.
-   Scans Code128 barcodes from event passes and fetches user data.
+   PASS SCANNER
+   Camera-based QR scanner for checkpoint staff & admin.
+   Scans styled QR codes from event passes and fetches user data.
    ═══════════════════════════════════════════════════════════════════ */
 
 type ScannedUser = {
@@ -151,7 +151,7 @@ export default function BarcodeScanner() {
                 d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M7 12h10"
               />
             </svg>
-            SCAN BARCODE
+            SCAN QR CODE
           </button>
         ) : (
           <button
@@ -187,7 +187,7 @@ export default function BarcodeScanner() {
         <div className="rounded-xl overflow-hidden border border-signal/20 bg-void/60">
           <div id={scannerDivId} style={{ width: "100%" }} />
           <p className="text-center text-dormant text-[9px] font-mono uppercase tracking-widest py-2 animate-pulse">
-            Point camera at barcode on event pass...
+            Point camera at QR code on event pass...
           </p>
         </div>
       )}

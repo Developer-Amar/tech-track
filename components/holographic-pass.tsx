@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useCallback, useMemo, useEffect, useState } from "react";
-import JsBarcode from "jsbarcode";
+import { useRef, useCallback, useMemo, useState } from "react";
+import StyledQR from "./styled-qr";
 
 /* ═══════════════════════════════════════════════════════════════════
    HOLOGRAPHIC EVENT PASS
-   A floating 3D-tilt ID badge with scannable barcode, Google avatar,
+   A floating 3D-tilt ID badge with styled QR code, Google avatar,
    and live field updates. Pure CSS + JS animations.
    ═══════════════════════════════════════════════════════════════════ */
 
@@ -40,31 +40,7 @@ export default function HolographicPass({
 }: HolographicPassProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
-  const barcodeRef = useRef<SVGSVGElement>(null);
   const [imgError, setImgError] = useState(false);
-
-  // Generate barcode when passCode is available
-  useEffect(() => {
-    if (passCode && barcodeRef.current) {
-      try {
-        JsBarcode(barcodeRef.current, passCode, {
-          format: "CODE128",
-          width: 1.5,
-          height: 32,
-          displayValue: true,
-          font: "monospace",
-          fontSize: 10,
-          fontOptions: "bold",
-          textMargin: 4,
-          background: "transparent",
-          lineColor: filledCount === 4 ? "#7DF9FF" : "#475569",
-          margin: 0,
-        });
-      } catch {
-        // Barcode generation failed — show decorative fallback
-      }
-    }
-  }, [passCode, filledCount]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -455,23 +431,37 @@ export default function HolographicPass({
             </span>
           </div>
 
-          {/* Barcode: Real (if passCode) or decorative */}
+          {/* QR Code: Styled (if passCode) or decorative dots */}
           <div
             style={{
               marginBottom: "14px",
               display: "flex",
-              justifyContent: "center",
-              overflow: "hidden",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "6px",
             }}
           >
             {passCode ? (
-              <svg
-                ref={barcodeRef}
-                style={{
-                  width: "100%",
-                  maxHeight: "48px",
-                }}
-              />
+              <>
+                <StyledQR
+                  data={passCode}
+                  size={90}
+                  active={filledCount === 4}
+                />
+                <span
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    letterSpacing: "0.25em",
+                    color: filledCount === 4 ? "#7DF9FF" : "rgba(148,163,184,0.4)",
+                    textTransform: "uppercase",
+                    transition: "color 0.4s ease",
+                  }}
+                >
+                  {passCode}
+                </span>
+              </>
             ) : (
               <div
                 style={{
