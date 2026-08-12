@@ -185,9 +185,20 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           {/* User profile card */}
           <BentoCard className="md:col-span-12 p-6 md:p-8 flex items-center gap-6" delay={0.2} glowColor="purple">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/40 border border-[#7DF9FF]/30 shadow-[0_0_20px_rgba(125,249,255,0.15)] relative overflow-hidden group">
-              <div className="absolute inset-0 bg-[#7DF9FF]/10 group-hover:bg-[#7DF9FF]/20 transition-colors duration-300" />
-              <User className="w-8 h-8 text-[#7DF9FF] relative z-10" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/40 border border-[#7DF9FF]/30 shadow-[0_0_20px_rgba(125,249,255,0.15)] relative overflow-hidden group shrink-0">
+              {profile.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.name}
+                  className="w-full h-full object-cover relative z-10"
+                />
+              ) : (
+                <>
+                  <div className="absolute inset-0 bg-[#7DF9FF]/10 group-hover:bg-[#7DF9FF]/20 transition-colors duration-300" />
+                  <User className="w-8 h-8 text-[#7DF9FF] relative z-10" />
+                </>
+              )}
             </div>
             <div>
               <p className="font-mono text-[10px] text-muted uppercase tracking-[0.2em] font-semibold">PARTICIPANT PROFILE</p>

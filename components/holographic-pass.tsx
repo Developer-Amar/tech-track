@@ -333,7 +333,7 @@ export default function HolographicPass({
               background: "rgba(125,249,255,0.03)",
               border: "1px solid rgba(125,249,255,0.08)",
               borderRadius: "10px",
-              padding: "12px 14px",
+              padding: "14px",
               marginBottom: "14px",
               display: "flex",
               alignItems: "center",
@@ -348,8 +348,8 @@ export default function HolographicPass({
                   alt={name}
                   onError={() => setImgError(true)}
                   style={{
-                    width: "44px",
-                    height: "44px",
+                    width: "48px",
+                    height: "48px",
                     borderRadius: "50%",
                     objectFit: "cover",
                     display: "block",
@@ -358,8 +358,8 @@ export default function HolographicPass({
               ) : (
                 <div
                   style={{
-                    width: "44px",
-                    height: "44px",
+                    width: "48px",
+                    height: "48px",
                     borderRadius: "50%",
                     background: "rgba(125,249,255,0.1)",
                     display: "flex",
@@ -378,20 +378,18 @@ export default function HolographicPass({
             </div>
 
             {/* Name + email */}
-            <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
               <p
                 style={{
                   fontFamily: "var(--font-display), sans-serif",
-                  fontSize: "17px",
+                  fontSize: "15px",
                   fontWeight: 800,
-                  letterSpacing: "0.04em",
+                  letterSpacing: "0.02em",
                   textTransform: "uppercase",
                   color: "#e2e8f0",
                   margin: 0,
-                  lineHeight: 1.2,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  lineHeight: 1.3,
+                  wordBreak: "break-word",
                 }}
               >
                 {name || "—"}
@@ -399,10 +397,10 @@ export default function HolographicPass({
               <p
                 style={{
                   fontFamily: "monospace",
-                  fontSize: "9px",
-                  color: "rgba(148,163,184,0.5)",
-                  margin: "3px 0 0",
-                  lineHeight: 1,
+                  fontSize: "10px",
+                  color: "rgba(148,163,184,0.65)",
+                  margin: "4px 0 0",
+                  lineHeight: 1.2,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
