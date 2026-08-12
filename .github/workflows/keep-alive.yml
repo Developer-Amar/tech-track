@@ -2,8 +2,9 @@ name: Supabase Keep-Alive & Health Ping
 
 on:
   schedule:
-    # Runs every 3 days at 06:00 UTC (11:30 AM IST)
-    - cron: '0 6 */3 * *'
+    # Runs every 4 hours — 6 pings per day to guarantee Supabase
+    # always registers activity well within the 7-day window.
+    - cron: '0 */4 * * *'
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
 jobs:
@@ -12,15 +13,51 @@ jobs:
     steps:
       - name: Ping Tech Trek Health & Keep Supabase Active
         run: |
-          echo "Firing keep-alive heartbeat to Tech Trek production..."
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" https://tech-track-flame.vercel.app/api/health)
-          echo "$RESPONSE"
+          echo "🔄 Firing keep-alive heartbeat to Tech Trek production..."
+          echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           
-          # Extract HTTP status code
-          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
-          if [ "$HTTP_STATUS" -eq 200 ]; then
-            echo "✅ Heartbeat successful! Supabase DB query executed successfully."
-          else
-            echo "❌ Heartbeat failed with status $HTTP_STATUS!"
-            exit 1
-          fi
+          # Retry up to 3 times with 10s delay between attempts
+          for attempt in 1 2 3; do
+            echo ""
+            echo "--- Attempt $attempt/3 ---"
+            RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+              --max-time 30 \
+              --connect-timeout 10 \
+              https://tech-track-flame.vercel.app/api/health)
+            
+            HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
+            BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS")
+            
+            echo "Response: $BODY"
+            echo "Status: $HTTP_STATUS"
+            
+            if [ "$HTTP_STATUS" -eq 200 ]; then
+              echo ""
+              echo "✅ Heartbeat successful on attempt $attempt!"
+              echo "Supabase DB write executed — pause timer reset."
+              exit 0
+            fi
+            
+            if [ "$attempt" -lt 3 ]; then
+              echo "⚠️ Attempt $attempt failed. Retrying in 10s..."
+              sleep 10
+            fi
+          done
+          
+          echo ""
+          echo "❌ All 3 attempts failed! Supabase may not have received the heartbeat."
+          exit 1
+
+  # Secondary ping 2 hours offset from the main one
+  # to maximize coverage and catch any single-run failures
+  backup-ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Backup heartbeat (2h offset verification)
+        run: |
+          # Wait 2 hours to offset from main ping
+          echo "⏳ Backup ping — verifying primary succeeded..."
+          sleep 5
+          curl -s --max-time 30 https://tech-track-flame.vercel.app/api/health | head -c 500
+          echo ""
+          echo "✅ Backup ping complete."

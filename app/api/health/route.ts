@@ -6,21 +6,28 @@ export const revalidate = 0;
 /**
  * Live System Heartbeat & Health Check Endpoint.
  *
- * 1. Performs an active query against Supabase DB to measure latency
- *    and keep the Supabase project active (prevents auto-pausing).
+ * 1. Performs an active WRITE + READ against Supabase DB to guarantee
+ *    the project registers as "active" (prevents auto-pausing).
  * 2. Checks Judge0 API configuration / status.
- * 3. Returns structured telemetry for monitoring tools and GitHub cron.
+ * 3. Returns structured telemetry for monitoring tools and cron jobs.
+ *
+ * The WRITE operation (upsert into heartbeat_log) is critical:
+ * Supabase may not count read-only SELECTs as "sufficient activity"
+ * for their auto-pause detection. A write guarantees activity.
  */
 export async function GET() {
   const startTime = Date.now();
   let dbStatus = "unreachable";
   let dbLatencyMs = -1;
   let judge0Status = "unconfigured";
+  let heartbeatWritten = false;
 
-  // 1. Ping Supabase Database
+  // 1. Ping Supabase Database — READ + WRITE
   try {
     const admin = createAdminClient();
     const dbStart = Date.now();
+
+    // Read: verify connectivity
     const { data, error } = await admin
       .from("event_settings")
       .select("id, event_live, registration_open")
@@ -32,6 +39,31 @@ export async function GET() {
       dbLatencyMs = Date.now() - dbStart;
     } else {
       dbStatus = `error: ${error?.message || "unknown"}`;
+    }
+
+    // Write: upsert a heartbeat record so Supabase definitely
+    // registers this as "activity" for the pause-prevention check.
+    // Uses a dedicated heartbeat_log table (single-row upsert).
+    try {
+      const { error: writeError } = await admin
+        .from("heartbeat_log")
+        .upsert(
+          {
+            id: 1,
+            last_ping: new Date().toISOString(),
+            source: "health-endpoint",
+            ping_count: 1,
+          },
+          { onConflict: "id" }
+        );
+
+      if (!writeError) {
+        heartbeatWritten = true;
+        // Also increment ping_count
+        try { await admin.rpc("increment_heartbeat_count"); } catch { /* non-fatal */ }
+      }
+    } catch {
+      // Non-fatal: heartbeat write failed but read succeeded
     }
   } catch (err: any) {
     dbStatus = `exception: ${err?.message || "failed"}`;
@@ -54,6 +86,7 @@ export async function GET() {
         database: {
           status: dbStatus,
           latency_ms: dbLatencyMs,
+          heartbeat_written: heartbeatWritten,
         },
         judge0: {
           status: judge0Status,
