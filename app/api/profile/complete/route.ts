@@ -1,6 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+/** Generate an 8-character unique pass code (no ambiguous chars: 0/O, 1/I/L) */
+function generatePassCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let result = "";
+  for (let i = 0; i < 8; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
+}
+
 /**
  * POST /api/profile/complete
  *
@@ -51,6 +61,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: errors.join("; ") }, { status: 400 });
   }
 
+  // ── Generate unique pass code ──────────────────────────────────────────
+  const passCode = generatePassCode();
+
   // ── Update the user profile ───────────────────────────────────────────
   const { error: updateError } = await supabase
     .from("users")
@@ -60,6 +73,8 @@ export async function POST(request: Request) {
       branch: branch!.trim(),
       semester: semester!,
       profile_completed: true,
+      pass_code: passCode,
+      avatar_url: user.user_metadata?.avatar_url ?? null,
     })
     .eq("id", user.id);
 

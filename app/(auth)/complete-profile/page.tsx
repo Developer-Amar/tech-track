@@ -25,6 +25,7 @@ export default async function CompleteProfilePage() {
     <ProfileTerminal
       name={profile?.name ?? user.user_metadata?.full_name ?? ""}
       email={profile?.email ?? user.email ?? ""}
+      avatarUrl={user.user_metadata?.avatar_url ?? ""}
     />
   );
 }

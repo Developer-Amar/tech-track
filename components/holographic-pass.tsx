@@ -1,16 +1,18 @@
 "use client";
 
-import { useRef, useCallback, useMemo } from "react";
+import { useRef, useCallback, useMemo, useEffect, useState } from "react";
+import JsBarcode from "jsbarcode";
 
 /* ═══════════════════════════════════════════════════════════════════
    HOLOGRAPHIC EVENT PASS
-   A floating 3D-tilt ID badge that fills in live as the user types.
-   Pure CSS + JS — no Three.js, no canvas, no heavy deps.
+   A floating 3D-tilt ID badge with scannable barcode, Google avatar,
+   and live field updates. Pure CSS + JS animations.
    ═══════════════════════════════════════════════════════════════════ */
 
 interface HolographicPassProps {
   name: string;
   email: string;
+  avatarUrl?: string;
   mobileNumber: string;
   rollNo: string;
   branch: string;
@@ -19,11 +21,13 @@ interface HolographicPassProps {
   isSubmitting: boolean;
   isSuccess: boolean;
   isError: boolean;
+  passCode?: string; // For the real barcode — only set post-registration
 }
 
 export default function HolographicPass({
   name,
   email,
+  avatarUrl,
   mobileNumber,
   rollNo,
   branch,
@@ -32,23 +36,52 @@ export default function HolographicPass({
   isSubmitting,
   isSuccess,
   isError,
+  passCode,
 }: HolographicPassProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const barcodeRef = useRef<SVGSVGElement>(null);
+  const [imgError, setImgError] = useState(false);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const card = cardRef.current;
-    const glow = glowRef.current;
-    if (!card || !glow) return;
-    const rect = card.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    const rotateY = (x - 0.5) * 24;
-    const rotateX = -(y - 0.5) * 24;
-    card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
-    glow.style.background = `radial-gradient(circle at ${x * 100}% ${y * 100}%, rgba(125,249,255,0.25) 0%, transparent 60%)`;
-    glow.style.opacity = "1";
-  }, []);
+  // Generate barcode when passCode is available
+  useEffect(() => {
+    if (passCode && barcodeRef.current) {
+      try {
+        JsBarcode(barcodeRef.current, passCode, {
+          format: "CODE128",
+          width: 1.5,
+          height: 32,
+          displayValue: true,
+          font: "monospace",
+          fontSize: 10,
+          fontOptions: "bold",
+          textMargin: 4,
+          background: "transparent",
+          lineColor: filledCount === 4 ? "#7DF9FF" : "#475569",
+          margin: 0,
+        });
+      } catch {
+        // Barcode generation failed — show decorative fallback
+      }
+    }
+  }, [passCode, filledCount]);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const card = cardRef.current;
+      const glow = glowRef.current;
+      if (!card || !glow) return;
+      const rect = card.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      const rotateY = (x - 0.5) * 24;
+      const rotateX = -(y - 0.5) * 24;
+      card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+      glow.style.background = `radial-gradient(circle at ${x * 100}% ${y * 100}%, rgba(125,249,255,0.25) 0%, transparent 60%)`;
+      glow.style.opacity = "1";
+    },
+    []
+  );
 
   const handleMouseLeave = useCallback(() => {
     const card = cardRef.current;
@@ -57,7 +90,7 @@ export default function HolographicPass({
     if (glow) glow.style.opacity = "0";
   }, []);
 
-  // Decorative barcode
+  // Decorative barcode (used when no passCode yet)
   const barcodeBars = useMemo(
     () =>
       Array.from({ length: 40 }, (_, i) => ({
@@ -68,7 +101,7 @@ export default function HolographicPass({
     []
   );
 
-  // Dynamic border color
+  // Dynamic styles
   const borderColor = isError
     ? "rgba(239,68,68,0.6)"
     : isSuccess
@@ -122,6 +155,17 @@ export default function HolographicPass({
     .filter(Boolean)
     .join(" ");
 
+  // Avatar: Google profile photo or initials
+  const showAvatar = avatarUrl && !imgError;
+  const initials = name
+    ? name
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "?";
+
   return (
     <div className="flex items-center justify-center w-full h-full select-none">
       <style>{`
@@ -134,41 +178,29 @@ export default function HolographicPass({
           0%, 100% { transform: perspective(800px) translateY(0px); }
           50% { transform: perspective(800px) translateY(-12px); }
         }
-        .holo-card:hover {
-          animation-play-state: paused;
-        }
-        .holo-success {
-          animation: holoFlip 1.2s ease-in-out forwards !important;
-        }
+        .holo-card:hover { animation-play-state: paused; }
+        .holo-success { animation: holoFlip 1.2s ease-in-out forwards !important; }
         @keyframes holoFlip {
           0% { transform: perspective(800px) rotateY(0deg) scale(1); }
           50% { transform: perspective(800px) rotateY(180deg) scale(1.05); }
           100% { transform: perspective(800px) rotateY(360deg) scale(1); }
         }
-        .holo-error {
-          animation: holoShake 0.5s ease-in-out !important;
-        }
+        .holo-error { animation: holoShake 0.5s ease-in-out !important; }
         @keyframes holoShake {
           0%, 100% { transform: perspective(800px) translateX(0); }
           10%, 50%, 90% { transform: perspective(800px) translateX(-8px); }
           30%, 70% { transform: perspective(800px) translateX(8px); }
         }
-        .holo-pulse {
-          animation: holoPulse 1.5s ease-in-out infinite !important;
-        }
+        .holo-pulse { animation: holoPulse 1.5s ease-in-out infinite !important; }
         @keyframes holoPulse {
           0%, 100% { border-color: rgba(125,249,255,0.2); }
           50% { border-color: rgba(125,249,255,0.6); }
         }
         .holo-shimmer {
           background: linear-gradient(
-            105deg,
-            transparent 20%,
-            rgba(125,249,255,0.03) 30%,
-            rgba(167,139,250,0.04) 40%,
-            rgba(255,30,86,0.03) 50%,
-            rgba(125,249,255,0.04) 60%,
-            transparent 80%
+            105deg, transparent 20%, rgba(125,249,255,0.03) 30%,
+            rgba(167,139,250,0.04) 40%, rgba(255,30,86,0.03) 50%,
+            rgba(125,249,255,0.04) 60%, transparent 80%
           );
           background-size: 200% 200%;
           animation: shimmer 4s ease-in-out infinite;
@@ -181,18 +213,18 @@ export default function HolographicPass({
           color: #e2e8f0;
           text-shadow: 0 0 8px rgba(125,249,255,0.2);
         }
-        .holo-field-empty {
-          color: rgba(148,163,184,0.25);
-        }
-        .barcode-bar {
-          transition: opacity 0.3s ease;
-        }
+        .holo-field-empty { color: rgba(148,163,184,0.25); }
         .status-dot {
           animation: statusPulse 2s ease-in-out infinite;
         }
         @keyframes statusPulse {
           0%, 100% { opacity: 1; box-shadow: 0 0 4px currentColor; }
           50% { opacity: 0.6; box-shadow: 0 0 8px currentColor; }
+        }
+        .avatar-ring {
+          background: conic-gradient(from 0deg, #7DF9FF, #A78BFA, #FF1E56, #7DF9FF);
+          padding: 2px;
+          border-radius: 50%;
         }
       `}</style>
 
@@ -208,7 +240,7 @@ export default function HolographicPass({
           background: "rgba(8, 8, 18, 0.88)",
           backdropFilter: "blur(16px)",
           boxShadow,
-          padding: "28px 24px",
+          padding: "24px 22px",
           position: "relative",
           overflow: "hidden",
           cursor: "default",
@@ -243,7 +275,7 @@ export default function HolographicPass({
         {/* Card content */}
         <div style={{ position: "relative", zIndex: 3 }}>
           {/* Header */}
-          <div style={{ marginBottom: "20px" }}>
+          <div style={{ marginBottom: "16px" }}>
             <div
               style={{
                 display: "flex",
@@ -295,42 +327,90 @@ export default function HolographicPass({
             </span>
           </div>
 
-          {/* Name + Email block */}
+          {/* Avatar + Name block */}
           <div
             style={{
               background: "rgba(125,249,255,0.03)",
               border: "1px solid rgba(125,249,255,0.08)",
               borderRadius: "10px",
-              padding: "14px 16px",
-              marginBottom: "18px",
+              padding: "12px 14px",
+              marginBottom: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
             }}
           >
-            <p
-              style={{
-                fontFamily: "var(--font-display), sans-serif",
-                fontSize: "20px",
-                fontWeight: 800,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                color: "#e2e8f0",
-                margin: 0,
-                lineHeight: 1.2,
-                wordBreak: "break-word",
-              }}
-            >
-              {name || "—"}
-            </p>
-            <p
-              style={{
-                fontFamily: "monospace",
-                fontSize: "10px",
-                color: "rgba(148,163,184,0.5)",
-                margin: "4px 0 0",
-                lineHeight: 1,
-              }}
-            >
-              {email}
-            </p>
+            {/* Profile photo */}
+            <div className="avatar-ring" style={{ flexShrink: 0 }}>
+              {showAvatar ? (
+                <img
+                  src={avatarUrl}
+                  alt={name}
+                  onError={() => setImgError(true)}
+                  style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "50%",
+                    background: "rgba(125,249,255,0.1)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontFamily: "var(--font-display), monospace",
+                    fontSize: "16px",
+                    fontWeight: 800,
+                    color: "#7DF9FF",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {initials}
+                </div>
+              )}
+            </div>
+
+            {/* Name + email */}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <p
+                style={{
+                  fontFamily: "var(--font-display), sans-serif",
+                  fontSize: "17px",
+                  fontWeight: 800,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  color: "#e2e8f0",
+                  margin: 0,
+                  lineHeight: 1.2,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {name || "—"}
+              </p>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "9px",
+                  color: "rgba(148,163,184,0.5)",
+                  margin: "3px 0 0",
+                  lineHeight: 1,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {email}
+              </p>
+            </div>
           </div>
 
           {/* Data fields row */}
@@ -339,24 +419,16 @@ export default function HolographicPass({
               display: "grid",
               gridTemplateColumns: "1fr 1fr 1fr",
               gap: "2px",
-              marginBottom: "14px",
+              marginBottom: "12px",
             }}
           >
-            <FieldCell
-              label="ROLL NO"
-              value={rollNo}
-              placeholder="—"
-            />
+            <FieldCell label="ROLL NO" value={rollNo} placeholder="—" />
             <FieldCell label="BRANCH" value={branch} placeholder="—" />
-            <FieldCell
-              label="SEM"
-              value={semester}
-              placeholder="—"
-            />
+            <FieldCell label="SEM" value={semester} placeholder="—" />
           </div>
 
           {/* Mobile row */}
-          <div style={{ marginBottom: "18px" }}>
+          <div style={{ marginBottom: "14px" }}>
             <span
               style={{
                 fontFamily: "monospace",
@@ -371,7 +443,9 @@ export default function HolographicPass({
               MOBILE
             </span>
             <span
-              className={mobileNumber ? "holo-field-filled" : "holo-field-empty"}
+              className={
+                mobileNumber ? "holo-field-filled" : "holo-field-empty"
+              }
               style={{
                 fontFamily: "monospace",
                 fontSize: "13px",
@@ -383,34 +457,51 @@ export default function HolographicPass({
             </span>
           </div>
 
-          {/* Decorative barcode */}
+          {/* Barcode: Real (if passCode) or decorative */}
           <div
             style={{
+              marginBottom: "14px",
               display: "flex",
-              alignItems: "flex-end",
-              gap: "1.5px",
-              height: "28px",
-              marginBottom: "16px",
+              justifyContent: "center",
               overflow: "hidden",
             }}
           >
-            {barcodeBars.map((bar) => (
-              <div
-                key={bar.key}
-                className="barcode-bar"
+            {passCode ? (
+              <svg
+                ref={barcodeRef}
                 style={{
-                  width: `${bar.width}px`,
-                  height: `${55 + Math.random() * 45}%`,
-                  background:
-                    filledCount === 4
-                      ? `rgba(125,249,255,${bar.opacity * 0.8})`
-                      : `rgba(148,163,184,${bar.opacity * 0.3})`,
-                  borderRadius: "1px",
-                  flexShrink: 0,
-                  transition: "background 0.6s ease",
+                  width: "100%",
+                  maxHeight: "48px",
                 }}
               />
-            ))}
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: "1.5px",
+                  height: "28px",
+                  width: "100%",
+                }}
+              >
+                {barcodeBars.map((bar) => (
+                  <div
+                    key={bar.key}
+                    style={{
+                      width: `${bar.width}px`,
+                      height: `${55 + Math.random() * 45}%`,
+                      background:
+                        filledCount === 4
+                          ? `rgba(125,249,255,${bar.opacity * 0.8})`
+                          : `rgba(148,163,184,${bar.opacity * 0.3})`,
+                      borderRadius: "1px",
+                      flexShrink: 0,
+                      transition: "background 0.6s ease",
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Status bar */}
@@ -419,7 +510,7 @@ export default function HolographicPass({
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              paddingTop: "12px",
+              paddingTop: "10px",
               borderTop: "1px solid rgba(148,163,184,0.06)",
             }}
           >

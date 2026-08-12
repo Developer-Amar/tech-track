@@ -25,9 +25,11 @@ type PassState = {
 export default function ProfileTerminal({
   name,
   email,
+  avatarUrl,
 }: {
   name: string;
   email: string;
+  avatarUrl?: string;
 }) {
   const [passState, setPassState] = useState<PassState>({
     mobileNumber: "",
@@ -67,6 +69,7 @@ export default function ProfileTerminal({
           <HolographicPass
             name={name}
             email={email}
+            avatarUrl={avatarUrl}
             mobileNumber={passState.mobileNumber}
             rollNo={passState.rollNo}
             branch={passState.branch}
@@ -83,6 +86,7 @@ export default function ProfileTerminal({
           <HolographicPass
             name={name}
             email={email}
+            avatarUrl={avatarUrl}
             mobileNumber={passState.mobileNumber}
             rollNo={passState.rollNo}
             branch={passState.branch}
