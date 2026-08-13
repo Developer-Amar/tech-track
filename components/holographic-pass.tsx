@@ -387,45 +387,44 @@ export default function HolographicPass({
               {email}
             </p>
 
-            {/* Badges row */}
+            {/* Role + Unit labels */}
             {(role || unitInfo) && (
-              <div style={{ display: "flex", gap: "6px", marginTop: "10px", flexWrap: "wrap" }}>
+              <div
+                style={{
+                  marginTop: "10px",
+                  paddingTop: "8px",
+                  borderTop: "1px solid rgba(148,163,184,0.06)",
+                  display: "flex",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
                 {role && (
                   <span
                     style={{
                       fontFamily: "monospace",
-                      fontSize: "9px",
+                      fontSize: "8px",
                       fontWeight: 600,
-                      letterSpacing: "0.12em",
+                      letterSpacing: "0.18em",
                       textTransform: "uppercase",
                       color: ROLE_COLORS[role]?.text ?? "#94A3B8",
-                      background: ROLE_COLORS[role]?.bg ?? "rgba(148,163,184,0.06)",
-                      border: `1px solid ${ROLE_COLORS[role]?.border ?? "rgba(148,163,184,0.12)"}`,
-                      borderRadius: "5px",
-                      padding: "3px 10px",
-                      lineHeight: "1.4",
                     }}
                   >
-                    {ROLE_LABELS[role] ?? role.toUpperCase()}
+                    ◆ {ROLE_LABELS[role] ?? role.toUpperCase()}
                   </span>
                 )}
                 {unitInfo && (
                   <span
                     style={{
                       fontFamily: "monospace",
-                      fontSize: "9px",
+                      fontSize: "8px",
                       fontWeight: 600,
-                      letterSpacing: "0.12em",
+                      letterSpacing: "0.18em",
                       textTransform: "uppercase",
-                      color: "#C4B5FD",
-                      background: "rgba(196,181,253,0.06)",
-                      border: "1px solid rgba(196,181,253,0.15)",
-                      borderRadius: "5px",
-                      padding: "3px 10px",
-                      lineHeight: "1.4",
+                      color: "#A78BFA",
                     }}
                   >
-                    {unitInfo.type === "solo" ? "SOLO" : unitInfo.name}
+                    ◆ {unitInfo.type === "solo" ? "SOLO" : unitInfo.name}
                   </span>
                 )}
               </div>
