@@ -42,7 +42,7 @@ export default function DownloadablePass({
     try {
       const canvas = await html2canvas(passContainerRef.current, {
         backgroundColor: "#05050F",
-        scale: 2,
+        scale: 3,
         useCORS: true,
         logging: false,
       });
