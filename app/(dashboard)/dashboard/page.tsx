@@ -281,8 +281,12 @@ export default async function DashboardPage() {
               </BentoCard>
             )}
 
-            {/* Download Event Pass — shown when locked */}
-            {unitData?.locked && profile.pass_code && (
+            {/* Download Event Pass — shown when:
+                - Participants: team/solo is locked
+                - Admin/SuperAdmin/Staff: always (they don't need to lock) */}
+            {profile.pass_code && (
+              unitData?.locked || ["admin", "super_admin", "checkpoint_staff"].includes(profile.role)
+            ) && (
               <BentoCard delay={0.45} glowColor="purple" className="p-2">
                 <div className="text-center mb-2 pt-4">
                   <span className="font-mono text-[9px] uppercase tracking-widest text-[#7DF9FF] font-semibold">YOUR EVENT PASS</span>
@@ -297,6 +301,8 @@ export default async function DashboardPage() {
                   branch={profile.branch ?? ""}
                   semester={String(profile.semester ?? "")}
                   passCode={profile.pass_code}
+                  role={profile.role}
+                  unitInfo={unitData ? { type: unitData.unit_type, name: unitData.name ?? "Solo" } : null}
                 />
               </BentoCard>
             )}

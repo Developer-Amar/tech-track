@@ -18,6 +18,8 @@ export default function DownloadablePass({
   branch,
   semester,
   passCode,
+  role,
+  unitInfo,
 }: {
   name: string;
   email: string;
@@ -27,6 +29,8 @@ export default function DownloadablePass({
   branch: string;
   semester: string;
   passCode: string;
+  role?: string;
+  unitInfo?: { type: "solo" | "team"; name: string } | null;
 }) {
   const passContainerRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
@@ -38,8 +42,8 @@ export default function DownloadablePass({
     try {
       const canvas = await html2canvas(passContainerRef.current, {
         backgroundColor: "#05050F",
-        scale: 2, // 2x resolution for crisp output
-        useCORS: true, // Allow Google profile photo
+        scale: 2,
+        useCORS: true,
         logging: false,
       });
 
@@ -70,6 +74,8 @@ export default function DownloadablePass({
           branch={branch}
           semester={semester}
           passCode={passCode}
+          role={role}
+          unitInfo={unitInfo}
           filledCount={4}
           isSubmitting={false}
           isSuccess={false}
@@ -88,7 +94,7 @@ export default function DownloadablePass({
       </button>
 
       <p className="text-dormant text-[9px] font-mono uppercase tracking-widest text-center max-w-xs">
-        Save your pass and bring it to the event. Staff will scan your barcode for verification.
+        Save your pass and bring it to the event. Staff will scan your QR code for verification.
       </p>
     </div>
   );

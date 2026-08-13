@@ -21,7 +21,9 @@ interface HolographicPassProps {
   isSubmitting: boolean;
   isSuccess: boolean;
   isError: boolean;
-  passCode?: string; // For the real barcode — only set post-registration
+  passCode?: string;
+  role?: string;
+  unitInfo?: { type: "solo" | "team"; name: string } | null;
 }
 
 export default function HolographicPass({
@@ -37,6 +39,8 @@ export default function HolographicPass({
   isSuccess,
   isError,
   passCode,
+  role,
+  unitInfo,
 }: HolographicPassProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -303,7 +307,7 @@ export default function HolographicPass({
             </span>
           </div>
 
-          {/* Avatar + Name block */}
+          {/* Avatar + Name + Role block */}
           <div
             style={{
               background: "rgba(125,249,255,0.03)",
@@ -311,79 +315,119 @@ export default function HolographicPass({
               borderRadius: "10px",
               padding: "14px",
               marginBottom: "14px",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
             }}
           >
-            {/* Profile photo */}
-            <div className="avatar-ring" style={{ flexShrink: 0 }}>
-              {showAvatar ? (
-                <img
-                  src={avatarUrl}
-                  alt={name}
-                  onError={() => setImgError(true)}
+            {/* Top: Avatar + Name */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
+              {/* Profile photo */}
+              <div className="avatar-ring" style={{ flexShrink: 0 }}>
+                {showAvatar ? (
+                  <img
+                    src={avatarUrl}
+                    alt={name}
+                    onError={() => setImgError(true)}
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "50%",
+                      background: "rgba(125,249,255,0.1)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: "var(--font-display), monospace",
+                      fontSize: "16px",
+                      fontWeight: 800,
+                      color: "#7DF9FF",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {initials}
+                  </div>
+                )}
+              </div>
+
+              {/* Name only */}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p
                   style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "50%",
-                    background: "rgba(125,249,255,0.1)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontFamily: "var(--font-display), monospace",
-                    fontSize: "16px",
+                    fontFamily: "var(--font-display), sans-serif",
+                    fontSize: "15px",
                     fontWeight: 800,
-                    color: "#7DF9FF",
-                    letterSpacing: "0.05em",
+                    letterSpacing: "0.02em",
+                    textTransform: "uppercase",
+                    color: "#e2e8f0",
+                    margin: 0,
+                    lineHeight: 1.3,
+                    wordBreak: "break-word",
                   }}
                 >
-                  {initials}
-                </div>
-              )}
+                  {name || "\u2014"}
+                </p>
+              </div>
             </div>
 
-            {/* Name + email */}
-            <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
-              <p
-                style={{
-                  fontFamily: "var(--font-display), sans-serif",
-                  fontSize: "15px",
-                  fontWeight: 800,
-                  letterSpacing: "0.02em",
-                  textTransform: "uppercase",
-                  color: "#e2e8f0",
-                  margin: 0,
-                  lineHeight: 1.3,
-                  wordBreak: "break-word",
-                }}
-              >
-                {name || "—"}
-              </p>
-              <p
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "10px",
-                  color: "rgba(148,163,184,0.65)",
-                  margin: "4px 0 0",
-                  lineHeight: 1.2,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {email}
-              </p>
+            {/* Email — full width below avatar row */}
+            <p
+              style={{
+                fontFamily: "monospace",
+                fontSize: "10px",
+                color: "rgba(148,163,184,0.7)",
+                margin: 0,
+                lineHeight: 1.2,
+                letterSpacing: "0.02em",
+              }}
+            >
+              {email}
+            </p>
+
+            {/* Role + Unit badges */}
+            <div style={{ display: "flex", gap: "6px", marginTop: "8px", flexWrap: "wrap" }}>
+              {role && (
+                <span
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "8px",
+                    fontWeight: 700,
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    color: getRoleBadgeColor(role),
+                    background: getRoleBadgeBg(role),
+                    border: `1px solid ${getRoleBadgeColor(role)}33`,
+                    borderRadius: "4px",
+                    padding: "3px 8px",
+                  }}
+                >
+                  {formatRole(role)}
+                </span>
+              )}
+              {unitInfo && (
+                <span
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "8px",
+                    fontWeight: 700,
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    color: "#A78BFA",
+                    background: "rgba(167,139,250,0.08)",
+                    border: "1px solid rgba(167,139,250,0.2)",
+                    borderRadius: "4px",
+                    padding: "3px 8px",
+                  }}
+                >
+                  {unitInfo.type === "solo" ? "SOLO" : `TEAM: ${unitInfo.name}`}
+                </span>
+              )}
             </div>
           </div>
 
@@ -570,4 +614,33 @@ function FieldCell({
       </span>
     </div>
   );
+}
+
+/* ─── Role badge color helpers ─── */
+function getRoleBadgeColor(role: string): string {
+  switch (role) {
+    case "super_admin": return "#F59E0B";
+    case "admin": return "#7DF9FF";
+    case "checkpoint_staff": return "#34D399";
+    default: return "#94A3B8";
+  }
+}
+
+function getRoleBadgeBg(role: string): string {
+  switch (role) {
+    case "super_admin": return "rgba(245,158,11,0.08)";
+    case "admin": return "rgba(125,249,255,0.08)";
+    case "checkpoint_staff": return "rgba(52,211,153,0.08)";
+    default: return "rgba(148,163,184,0.06)";
+  }
+}
+
+function formatRole(role: string): string {
+  switch (role) {
+    case "super_admin": return "SUPER ADMIN";
+    case "admin": return "ADMIN";
+    case "checkpoint_staff": return "CHECKPOINT STAFF";
+    case "participant": return "PARTICIPANT";
+    default: return role.toUpperCase();
+  }
 }
