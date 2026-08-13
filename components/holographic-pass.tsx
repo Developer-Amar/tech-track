@@ -387,30 +387,27 @@ export default function HolographicPass({
               {email}
             </p>
 
-            {/* Role + Unit labels */}
+            {/* Role + Unit badges */}
             {(role || unitInfo) && (
-              <div
-                style={{
-                  marginTop: "10px",
-                  paddingTop: "8px",
-                  borderTop: "1px solid rgba(148,163,184,0.06)",
-                  display: "flex",
-                  gap: "12px",
-                  flexWrap: "wrap",
-                }}
-              >
+              <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
                 {role && (
                   <span
                     style={{
                       fontFamily: "monospace",
                       fontSize: "8px",
-                      fontWeight: 600,
-                      letterSpacing: "0.18em",
+                      fontWeight: 700,
+                      letterSpacing: "0.14em",
                       textTransform: "uppercase",
                       color: ROLE_COLORS[role]?.text ?? "#94A3B8",
+                      background: ROLE_COLORS[role]?.bg ?? "rgba(148,163,184,0.08)",
+                      border: `1px solid ${ROLE_COLORS[role]?.border ?? "rgba(148,163,184,0.15)"}`,
+                      borderRadius: "4px",
+                      padding: "4px 10px",
+                      lineHeight: "1.5",
+                      display: "inline-block",
                     }}
                   >
-                    ◆ {ROLE_LABELS[role] ?? role.toUpperCase()}
+                    {ROLE_LABELS[role] ?? role.toUpperCase()}
                   </span>
                 )}
                 {unitInfo && (
@@ -418,13 +415,19 @@ export default function HolographicPass({
                     style={{
                       fontFamily: "monospace",
                       fontSize: "8px",
-                      fontWeight: 600,
-                      letterSpacing: "0.18em",
+                      fontWeight: 700,
+                      letterSpacing: "0.14em",
                       textTransform: "uppercase",
-                      color: "#A78BFA",
+                      color: "#C4B5FD",
+                      background: "rgba(196,181,253,0.1)",
+                      border: "1px solid rgba(196,181,253,0.2)",
+                      borderRadius: "4px",
+                      padding: "4px 10px",
+                      lineHeight: "1.5",
+                      display: "inline-block",
                     }}
                   >
-                    ◆ {unitInfo.type === "solo" ? "SOLO" : unitInfo.name}
+                    {unitInfo.type === "solo" ? "SOLO" : unitInfo.name}
                   </span>
                 )}
               </div>
@@ -607,10 +610,10 @@ function DataCell({ label, value, ready }: { label: string; value: string; ready
 }
 
 const ROLE_COLORS: Record<string, { text: string; bg: string; border: string }> = {
-  super_admin: { text: "#FCD34D", bg: "rgba(252,211,77,0.06)", border: "rgba(252,211,77,0.18)" },
-  admin: { text: "#7DF9FF", bg: "rgba(125,249,255,0.06)", border: "rgba(125,249,255,0.18)" },
-  checkpoint_staff: { text: "#6EE7B7", bg: "rgba(110,231,183,0.06)", border: "rgba(110,231,183,0.18)" },
-  participant: { text: "#94A3B8", bg: "rgba(148,163,184,0.04)", border: "rgba(148,163,184,0.12)" },
+  super_admin: { text: "#FCD34D", bg: "rgba(252,211,77,0.12)", border: "rgba(252,211,77,0.25)" },
+  admin: { text: "#7DF9FF", bg: "rgba(125,249,255,0.12)", border: "rgba(125,249,255,0.25)" },
+  checkpoint_staff: { text: "#6EE7B7", bg: "rgba(110,231,183,0.12)", border: "rgba(110,231,183,0.25)" },
+  participant: { text: "#94A3B8", bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.18)" },
 };
 
 const ROLE_LABELS: Record<string, string> = {
