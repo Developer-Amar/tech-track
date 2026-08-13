@@ -37,12 +37,13 @@ export default function StyledQR({
 
     const modules = qr.modules;
     const moduleCount = modules.size;
-    const scale = (size * 2) / moduleCount; // 2x for retina
-    const dotSize = scale * 0.72; // Dot takes 72% of cell — leaves spacing
-    const radius = dotSize * 0.35; // Rounded corners
+    const dpr = 3; // 3x resolution for crisp rendering
+    const scale = (size * dpr) / moduleCount;
+    const dotSize = scale * 0.72;
+    const radius = dotSize * 0.35;
 
-    canvas.width = size * 2;
-    canvas.height = size * 2;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
     canvas.style.width = `${size}px`;
     canvas.style.height = `${size}px`;
 

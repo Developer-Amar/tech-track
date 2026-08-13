@@ -4,9 +4,9 @@ import { useRef, useCallback, useMemo, useState } from "react";
 import StyledQR from "./styled-qr";
 
 /* ═══════════════════════════════════════════════════════════════════
-   HOLOGRAPHIC EVENT PASS
-   A floating 3D-tilt ID badge with styled QR code, Google avatar,
-   and live field updates. Pure CSS + JS animations.
+   HOLOGRAPHIC EVENT PASS  v3
+   Crisp, high-DPI ID badge with styled QR code, Google avatar,
+   role badge, unit status, and live field updates.
    ═══════════════════════════════════════════════════════════════════ */
 
 interface HolographicPassProps {
@@ -52,13 +52,15 @@ export default function HolographicPass({
       const glow = glowRef.current;
       if (!card || !glow) return;
       const rect = card.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
-      const rotateY = (x - 0.5) * 24;
-      const rotateX = -(y - 0.5) * 24;
-      card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
-      glow.style.background = `radial-gradient(circle at ${x * 100}% ${y * 100}%, rgba(125,249,255,0.25) 0%, transparent 60%)`;
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+      const rotateY = ((x - cx) / cx) * 6;
+      const rotateX = ((cy - y) / cy) * 6;
+      card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
       glow.style.opacity = "1";
+      glow.style.background = `radial-gradient(circle at ${x}px ${y}px, rgba(125,249,255,0.06) 0%, transparent 60%)`;
     },
     []
   );
@@ -70,18 +72,18 @@ export default function HolographicPass({
     if (glow) glow.style.opacity = "0";
   }, []);
 
-  // Decorative barcode (used when no passCode yet)
+  // Decorative bars for pre-registration state
   const barcodeBars = useMemo(
     () =>
-      Array.from({ length: 40 }, (_, i) => ({
-        width: Math.random() > 0.5 ? 3 : 1.5,
-        opacity: 0.3 + Math.random() * 0.5,
+      Array.from({ length: 50 }, (_, i) => ({
         key: i,
+        width: Math.random() > 0.6 ? 2 : 1,
+        opacity: 0.3 + Math.random() * 0.5,
       })),
     []
   );
 
-  // Dynamic styles
+  // Dynamic styles based on form state
   const borderColor = isError
     ? "rgba(239,68,68,0.6)"
     : isSuccess
@@ -89,18 +91,18 @@ export default function HolographicPass({
     : isSubmitting
     ? "rgba(125,249,255,0.5)"
     : filledCount === 4
-    ? "rgba(125,249,255,0.5)"
+    ? "rgba(125,249,255,0.35)"
     : filledCount > 0
-    ? `rgba(125,249,255,${0.12 + filledCount * 0.08})`
-    : "rgba(148,163,184,0.1)";
+    ? `rgba(125,249,255,${0.12 + filledCount * 0.06})`
+    : "rgba(148,163,184,0.08)";
 
   const boxShadow = isSuccess
     ? "0 0 60px rgba(34,197,94,0.3), 0 0 120px rgba(34,197,94,0.1)"
     : isError
     ? "0 0 40px rgba(239,68,68,0.25)"
     : filledCount === 4
-    ? "0 0 50px rgba(125,249,255,0.15), 0 0 100px rgba(125,249,255,0.05)"
-    : "0 20px 60px rgba(0,0,0,0.5)";
+    ? "0 0 40px rgba(125,249,255,0.1), 0 0 80px rgba(125,249,255,0.03)"
+    : "0 16px 48px rgba(0,0,0,0.5)";
 
   const statusDot = isSuccess
     ? "#22C55E"
@@ -135,7 +137,6 @@ export default function HolographicPass({
     .filter(Boolean)
     .join(" ");
 
-  // Avatar: Google profile photo or initials
   const showAvatar = avatarUrl && !imgError;
   const initials = name
     ? name
@@ -146,6 +147,8 @@ export default function HolographicPass({
         .slice(0, 2)
     : "?";
 
+  const isReady = filledCount === 4;
+
   return (
     <div className="flex items-center justify-center w-full h-full select-none">
       <style>{`
@@ -153,10 +156,13 @@ export default function HolographicPass({
           animation: holoFloat 5s ease-in-out infinite;
           transition: transform 0.15s ease-out, box-shadow 0.4s ease, border-color 0.4s ease;
           will-change: transform;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          text-rendering: optimizeLegibility;
         }
         @keyframes holoFloat {
           0%, 100% { transform: perspective(800px) translateY(0px); }
-          50% { transform: perspective(800px) translateY(-12px); }
+          50% { transform: perspective(800px) translateY(-10px); }
         }
         .holo-card:hover { animation-play-state: paused; }
         .holo-success { animation: holoFlip 1.2s ease-in-out forwards !important; }
@@ -189,11 +195,8 @@ export default function HolographicPass({
           0%, 100% { background-position: 200% 50%; }
           50% { background-position: 0% 50%; }
         }
-        .holo-field-filled {
-          color: #e2e8f0;
-          text-shadow: 0 0 8px rgba(125,249,255,0.2);
-        }
-        .holo-field-empty { color: rgba(148,163,184,0.25); }
+        .holo-field-on { color: #e2e8f0; text-shadow: 0 0 6px rgba(125,249,255,0.15); }
+        .holo-field-off { color: rgba(148,163,184,0.25); }
         .status-dot {
           animation: statusPulse 2s ease-in-out infinite;
         }
@@ -205,6 +208,7 @@ export default function HolographicPass({
           background: conic-gradient(from 0deg, #7DF9FF, #A78BFA, #FF1E56, #7DF9FF);
           padding: 2px;
           border-radius: 50%;
+          display: inline-flex;
         }
       `}</style>
 
@@ -214,13 +218,13 @@ export default function HolographicPass({
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         style={{
-          width: "320px",
-          borderRadius: "16px",
-          border: `1.5px solid ${borderColor}`,
-          background: "rgba(8, 8, 18, 0.88)",
-          backdropFilter: "blur(16px)",
+          width: "340px",
+          borderRadius: "18px",
+          border: `1px solid ${borderColor}`,
+          background: "linear-gradient(170deg, rgba(12,12,24,0.95) 0%, rgba(6,6,14,0.98) 100%)",
+          backdropFilter: "blur(20px)",
           boxShadow,
-          padding: "24px 22px",
+          padding: "28px 24px",
           position: "relative",
           overflow: "hidden",
           cursor: "default",
@@ -232,7 +236,7 @@ export default function HolographicPass({
           style={{
             position: "absolute",
             inset: 0,
-            borderRadius: "16px",
+            borderRadius: "18px",
             pointerEvents: "none",
             zIndex: 1,
           }}
@@ -244,7 +248,7 @@ export default function HolographicPass({
           style={{
             position: "absolute",
             inset: 0,
-            borderRadius: "16px",
+            borderRadius: "18px",
             pointerEvents: "none",
             opacity: 0,
             transition: "opacity 0.3s ease",
@@ -252,83 +256,78 @@ export default function HolographicPass({
           }}
         />
 
-        {/* Card content */}
+        {/* Content layer */}
         <div style={{ position: "relative", zIndex: 3 }}>
-          {/* Header */}
-          <div style={{ marginBottom: "16px" }}>
+
+          {/* ─── Header: TECH TREK ─── */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                marginBottom: "4px",
-              }}
-            >
-              <div
-                style={{
-                  width: "8px",
-                  height: "8px",
-                  background: "#7DF9FF",
-                  clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-                  flexShrink: 0,
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "var(--font-display), monospace",
-                  fontSize: "14px",
-                  fontWeight: 800,
-                  letterSpacing: "0.15em",
-                  color: "#7DF9FF",
-                  textTransform: "uppercase",
-                }}
-              >
-                TECH TREK
-              </span>
-            </div>
-            <div
-              style={{
-                height: "1px",
-                background:
-                  "linear-gradient(to right, rgba(125,249,255,0.4), transparent)",
-                marginBottom: "6px",
+                width: "6px",
+                height: "6px",
+                background: "#7DF9FF",
+                clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+                flexShrink: 0,
               }}
             />
             <span
               style={{
-                fontFamily: "monospace",
-                fontSize: "9px",
-                letterSpacing: "0.25em",
-                color: "rgba(148,163,184,0.5)",
+                fontFamily: "var(--font-display), monospace",
+                fontSize: "16px",
+                fontWeight: 800,
+                letterSpacing: "0.12em",
+                color: "#7DF9FF",
                 textTransform: "uppercase",
               }}
             >
-              EVENT ACCESS PASS
+              TECH TREK
             </span>
           </div>
 
-          {/* Avatar + Name + Role block */}
           <div
             style={{
-              background: "rgba(125,249,255,0.03)",
-              border: "1px solid rgba(125,249,255,0.08)",
-              borderRadius: "10px",
-              padding: "14px",
+              height: "1px",
+              background: "linear-gradient(to right, rgba(125,249,255,0.3), transparent)",
+              marginBottom: "5px",
+            }}
+          />
+
+          <span
+            style={{
+              fontFamily: "monospace",
+              fontSize: "8px",
+              letterSpacing: "0.25em",
+              color: "rgba(148,163,184,0.45)",
+              textTransform: "uppercase",
+              display: "block",
               marginBottom: "14px",
             }}
           >
-            {/* Top: Avatar + Name */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
-              {/* Profile photo */}
+            EVENT ACCESS PASS
+          </span>
+
+          {/* ─── Identity block ─── */}
+          <div
+            style={{
+              background: "rgba(125,249,255,0.02)",
+              border: "1px solid rgba(125,249,255,0.06)",
+              borderRadius: "12px",
+              padding: "16px",
+              marginBottom: "16px",
+            }}
+          >
+            {/* Row: avatar + name */}
+            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
               <div className="avatar-ring" style={{ flexShrink: 0 }}>
                 {showAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={avatarUrl}
                     alt={name}
                     onError={() => setImgError(true)}
                     style={{
-                      width: "48px",
-                      height: "48px",
+                      width: "52px",
+                      height: "52px",
                       borderRadius: "50%",
                       objectFit: "cover",
                       display: "block",
@@ -337,18 +336,17 @@ export default function HolographicPass({
                 ) : (
                   <div
                     style={{
-                      width: "48px",
-                      height: "48px",
+                      width: "52px",
+                      height: "52px",
                       borderRadius: "50%",
-                      background: "rgba(125,249,255,0.1)",
+                      background: "rgba(125,249,255,0.08)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       fontFamily: "var(--font-display), monospace",
-                      fontSize: "16px",
+                      fontSize: "18px",
                       fontWeight: 800,
                       color: "#7DF9FF",
-                      letterSpacing: "0.05em",
                     }}
                   >
                     {initials}
@@ -356,18 +354,16 @@ export default function HolographicPass({
                 )}
               </div>
 
-              {/* Name only */}
               <div style={{ minWidth: 0, flex: 1 }}>
                 <p
                   style={{
                     fontFamily: "var(--font-display), sans-serif",
-                    fontSize: "15px",
+                    fontSize: "16px",
                     fontWeight: 800,
-                    letterSpacing: "0.02em",
                     textTransform: "uppercase",
-                    color: "#e2e8f0",
+                    color: "#f1f5f9",
                     margin: 0,
-                    lineHeight: 1.3,
+                    lineHeight: 1.25,
                     wordBreak: "break-word",
                   }}
                 >
@@ -376,129 +372,132 @@ export default function HolographicPass({
               </div>
             </div>
 
-            {/* Email — full width below avatar row */}
+            {/* Email — full width, never truncated */}
             <p
               style={{
                 fontFamily: "monospace",
                 fontSize: "10px",
-                color: "rgba(148,163,184,0.7)",
-                margin: 0,
-                lineHeight: 1.2,
-                letterSpacing: "0.02em",
+                color: "rgba(148,163,184,0.6)",
+                margin: "10px 0 0",
+                lineHeight: 1.3,
+                letterSpacing: "0.01em",
+                wordBreak: "break-all",
               }}
             >
               {email}
             </p>
 
-            {/* Role + Unit badges */}
-            <div style={{ display: "flex", gap: "6px", marginTop: "8px", flexWrap: "wrap" }}>
-              {role && (
-                <span
-                  style={{
-                    fontFamily: "monospace",
-                    fontSize: "8px",
-                    fontWeight: 700,
-                    letterSpacing: "0.15em",
-                    textTransform: "uppercase",
-                    color: getRoleBadgeColor(role),
-                    background: getRoleBadgeBg(role),
-                    border: `1px solid ${getRoleBadgeColor(role)}33`,
-                    borderRadius: "4px",
-                    padding: "3px 8px",
-                  }}
-                >
-                  {formatRole(role)}
-                </span>
-              )}
-              {unitInfo && (
-                <span
-                  style={{
-                    fontFamily: "monospace",
-                    fontSize: "8px",
-                    fontWeight: 700,
-                    letterSpacing: "0.15em",
-                    textTransform: "uppercase",
-                    color: "#A78BFA",
-                    background: "rgba(167,139,250,0.08)",
-                    border: "1px solid rgba(167,139,250,0.2)",
-                    borderRadius: "4px",
-                    padding: "3px 8px",
-                  }}
-                >
-                  {unitInfo.type === "solo" ? "SOLO" : `TEAM: ${unitInfo.name}`}
-                </span>
-              )}
-            </div>
+            {/* Badges row */}
+            {(role || unitInfo) && (
+              <div style={{ display: "flex", gap: "6px", marginTop: "10px", flexWrap: "wrap" }}>
+                {role && (
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "9px",
+                      fontWeight: 600,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: ROLE_COLORS[role]?.text ?? "#94A3B8",
+                      background: ROLE_COLORS[role]?.bg ?? "rgba(148,163,184,0.06)",
+                      border: `1px solid ${ROLE_COLORS[role]?.border ?? "rgba(148,163,184,0.12)"}`,
+                      borderRadius: "5px",
+                      padding: "3px 10px",
+                      lineHeight: "1.4",
+                    }}
+                  >
+                    {ROLE_LABELS[role] ?? role.toUpperCase()}
+                  </span>
+                )}
+                {unitInfo && (
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "9px",
+                      fontWeight: 600,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "#C4B5FD",
+                      background: "rgba(196,181,253,0.06)",
+                      border: "1px solid rgba(196,181,253,0.15)",
+                      borderRadius: "5px",
+                      padding: "3px 10px",
+                      lineHeight: "1.4",
+                    }}
+                  >
+                    {unitInfo.type === "solo" ? "SOLO" : unitInfo.name}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Data fields row */}
+          {/* ─── Data grid ─── */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: "2px",
-              marginBottom: "12px",
+              gridTemplateColumns: "1.2fr 0.8fr 0.5fr",
+              gap: "0",
+              marginBottom: "14px",
             }}
           >
-            <FieldCell label="ROLL NO" value={rollNo} placeholder="—" />
-            <FieldCell label="BRANCH" value={branch} placeholder="—" />
-            <FieldCell label="SEM" value={semester} placeholder="—" />
+            <DataCell label="ROLL NO" value={rollNo} ready={isReady} />
+            <DataCell label="BRANCH" value={branch} ready={isReady} />
+            <DataCell label="SEM" value={semester} ready={isReady} />
           </div>
 
-          {/* Mobile row */}
-          <div style={{ marginBottom: "14px" }}>
+          {/* Mobile */}
+          <div style={{ marginBottom: "16px" }}>
             <span
               style={{
                 fontFamily: "monospace",
                 fontSize: "8px",
                 letterSpacing: "0.2em",
-                color: "rgba(148,163,184,0.4)",
+                color: "rgba(148,163,184,0.35)",
                 textTransform: "uppercase",
                 display: "block",
-                marginBottom: "3px",
+                marginBottom: "4px",
               }}
             >
               MOBILE
             </span>
             <span
-              className={
-                mobileNumber ? "holo-field-filled" : "holo-field-empty"
-              }
+              className={mobileNumber ? "holo-field-on" : "holo-field-off"}
               style={{
                 fontFamily: "monospace",
-                fontSize: "13px",
-                letterSpacing: "0.08em",
-                transition: "color 0.3s ease, text-shadow 0.3s ease",
+                fontSize: "14px",
+                letterSpacing: "0.06em",
+                transition: "color 0.3s ease",
               }}
             >
               {mobileNumber || "— — — — —"}
             </span>
           </div>
 
-          {/* QR Code: Styled (if passCode) or decorative dots */}
+          {/* ─── QR / Decorative area ─── */}
           <div
             style={{
-              marginBottom: "14px",
+              marginBottom: "16px",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: "6px",
+              gap: "8px",
             }}
           >
             {passCode ? (
               <>
                 <StyledQR
                   data={passCode}
-                  size={90}
-                  active={filledCount === 4}
+                  size={110}
+                  active={isReady}
                 />
                 <span
                   style={{
                     fontFamily: "monospace",
-                    fontSize: "10px",
+                    fontSize: "11px",
                     fontWeight: 700,
-                    letterSpacing: "0.25em",
-                    color: filledCount === 4 ? "#7DF9FF" : "rgba(148,163,184,0.4)",
+                    letterSpacing: "0.3em",
+                    color: isReady ? "#7DF9FF" : "rgba(148,163,184,0.3)",
                     textTransform: "uppercase",
                     transition: "color 0.4s ease",
                   }}
@@ -522,10 +521,9 @@ export default function HolographicPass({
                     style={{
                       width: `${bar.width}px`,
                       height: `${55 + Math.random() * 45}%`,
-                      background:
-                        filledCount === 4
-                          ? `rgba(125,249,255,${bar.opacity * 0.8})`
-                          : `rgba(148,163,184,${bar.opacity * 0.3})`,
+                      background: isReady
+                        ? `rgba(125,249,255,${bar.opacity * 0.8})`
+                        : `rgba(148,163,184,${bar.opacity * 0.3})`,
                       borderRadius: "1px",
                       flexShrink: 0,
                       transition: "background 0.6s ease",
@@ -536,14 +534,14 @@ export default function HolographicPass({
             )}
           </div>
 
-          {/* Status bar */}
+          {/* ─── Status bar ─── */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              paddingTop: "10px",
-              borderTop: "1px solid rgba(148,163,184,0.06)",
+              paddingTop: "12px",
+              borderTop: "1px solid rgba(148,163,184,0.05)",
             }}
           >
             <div
@@ -576,71 +574,49 @@ export default function HolographicPass({
   );
 }
 
-/* ─── Small helper: labelled data cell ─── */
-function FieldCell({
-  label,
-  value,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-}) {
+/* ─── Small helpers ─── */
+
+function DataCell({ label, value, ready }: { label: string; value: string; ready: boolean }) {
   return (
-    <div style={{ padding: "6px 0" }}>
+    <div style={{ padding: "4px 0" }}>
       <span
         style={{
           fontFamily: "monospace",
           fontSize: "8px",
           letterSpacing: "0.2em",
-          color: "rgba(148,163,184,0.4)",
+          color: "rgba(148,163,184,0.35)",
           textTransform: "uppercase",
           display: "block",
-          marginBottom: "3px",
+          marginBottom: "4px",
         }}
       >
         {label}
       </span>
       <span
-        className={value ? "holo-field-filled" : "holo-field-empty"}
+        className={value ? "holo-field-on" : "holo-field-off"}
         style={{
           fontFamily: "monospace",
-          fontSize: "13px",
-          letterSpacing: "0.05em",
-          transition: "color 0.3s ease, text-shadow 0.3s ease",
+          fontSize: "14px",
+          letterSpacing: "0.04em",
+          transition: "color 0.3s ease",
         }}
       >
-        {value || placeholder}
+        {value || "—"}
       </span>
     </div>
   );
 }
 
-/* ─── Role badge color helpers ─── */
-function getRoleBadgeColor(role: string): string {
-  switch (role) {
-    case "super_admin": return "#F59E0B";
-    case "admin": return "#7DF9FF";
-    case "checkpoint_staff": return "#34D399";
-    default: return "#94A3B8";
-  }
-}
+const ROLE_COLORS: Record<string, { text: string; bg: string; border: string }> = {
+  super_admin: { text: "#FCD34D", bg: "rgba(252,211,77,0.06)", border: "rgba(252,211,77,0.18)" },
+  admin: { text: "#7DF9FF", bg: "rgba(125,249,255,0.06)", border: "rgba(125,249,255,0.18)" },
+  checkpoint_staff: { text: "#6EE7B7", bg: "rgba(110,231,183,0.06)", border: "rgba(110,231,183,0.18)" },
+  participant: { text: "#94A3B8", bg: "rgba(148,163,184,0.04)", border: "rgba(148,163,184,0.12)" },
+};
 
-function getRoleBadgeBg(role: string): string {
-  switch (role) {
-    case "super_admin": return "rgba(245,158,11,0.08)";
-    case "admin": return "rgba(125,249,255,0.08)";
-    case "checkpoint_staff": return "rgba(52,211,153,0.08)";
-    default: return "rgba(148,163,184,0.06)";
-  }
-}
-
-function formatRole(role: string): string {
-  switch (role) {
-    case "super_admin": return "SUPER ADMIN";
-    case "admin": return "ADMIN";
-    case "checkpoint_staff": return "CHECKPOINT STAFF";
-    case "participant": return "PARTICIPANT";
-    default: return role.toUpperCase();
-  }
-}
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "SUPER ADMIN",
+  admin: "ADMIN",
+  checkpoint_staff: "CHECKPOINT STAFF",
+  participant: "PARTICIPANT",
+};
