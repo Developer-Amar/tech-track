@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import SignOutButton from "@/components/sign-out-button";
 import RegistrationChoices from "@/components/registration-choices";
-import InviteBanner from "@/components/invite-banner";
 import TeamRoster from "@/components/team-roster";
 import LockedStatus from "@/components/locked-status";
 import BentoCard from "@/components/bento-card";
@@ -54,39 +53,39 @@ export default async function DashboardPage() {
   // Find any pending invites
   const adminSupabase = createAdminClient();
 
-  let pendingInvite: {
+  const pendingInvites: {
     unit_id: string;
     team_name: string | null;
     leader_name: string;
-  } | null = null;
+  }[] = [];
 
   const { data: pendingMemberships } = await supabase
     .from("unit_members")
     .select("unit_id")
     .eq("user_id", user.id)
-    .eq("status", "pending")
-    .limit(1)
-    .maybeSingle();
+    .eq("status", "pending");
 
-  if (pendingMemberships) {
-    const { data: inviteUnit } = await adminSupabase
-      .from("units")
-      .select("id, name, leader_id")
-      .eq("id", pendingMemberships.unit_id)
-      .single();
-
-    if (inviteUnit) {
-      const { data: leader } = await adminSupabase
-        .from("users")
-        .select("name")
-        .eq("id", inviteUnit.leader_id)
+  if (pendingMemberships && pendingMemberships.length > 0) {
+    for (const pm of pendingMemberships) {
+      const { data: inviteUnit } = await adminSupabase
+        .from("units")
+        .select("id, name, leader_id")
+        .eq("id", pm.unit_id)
         .single();
 
-      pendingInvite = {
-        unit_id: inviteUnit.id,
-        team_name: inviteUnit.name,
-        leader_name: leader?.name ?? "Someone",
-      };
+      if (inviteUnit) {
+        const { data: leader } = await adminSupabase
+          .from("users")
+          .select("name")
+          .eq("id", inviteUnit.leader_id)
+          .single();
+
+        pendingInvites.push({
+          unit_id: inviteUnit.id,
+          team_name: inviteUnit.name,
+          leader_name: leader?.name ?? "Someone",
+        });
+      }
     }
   }
 
@@ -211,17 +210,10 @@ export default async function DashboardPage() {
 
           {/* Main Content Area */}
           <div className="md:col-span-12 space-y-6">
-            {/* Pending invite banner */}
-            {!acceptedMembership && pendingInvite && (
-              <BentoCard delay={0.3} glowColor="signal" className="border border-signal/20">
-                <InviteBanner invite={pendingInvite} />
-              </BentoCard>
-            )}
-
             {/* Registration choices */}
             {!unitData ? (
               <BentoCard delay={0.4} className="p-1" glowColor="default">
-                <RegistrationChoices registrationOpen={registrationOpen} />
+                <RegistrationChoices registrationOpen={registrationOpen} pendingInvites={pendingInvites} />
               </BentoCard>
             ) : unitData.locked ? (
               <BentoCard delay={0.3} glowColor="signal" className="p-1">
