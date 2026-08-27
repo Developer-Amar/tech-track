@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 
   if (existingMembership) {
     return NextResponse.json(
-      { error: "You're already part of a team or locked as solo." },
+      { error: "You're already part of a team." },
       { status: 400 }
     );
   }
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
 
     if (inviteeExisting) {
       return NextResponse.json(
-        { error: `${email} is already part of another team or locked as solo.` },
+        { error: `${email} is already part of another team.` },
         { status: 400 }
       );
     }

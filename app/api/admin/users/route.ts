@@ -48,7 +48,7 @@ export async function GET() {
     const unit = unitMap.get(m.unit_id);
     if (unit) {
       membershipMap.set(m.user_id, {
-        unit_name: unit.name ?? "Solo",
+        unit_name: unit.name ?? "Unnamed Team",
         unit_type: unit.unit_type,
         status: m.status,
       });

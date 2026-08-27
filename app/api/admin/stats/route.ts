@@ -22,7 +22,6 @@ export async function GET() {
   const { count: profileComplete } = await admin.from("users").select("id", { count: "exact", head: true }).eq("profile_completed", true);
   const { count: totalUnits } = await admin.from("units").select("id", { count: "exact", head: true });
   const { count: lockedUnits } = await admin.from("units").select("id", { count: "exact", head: true }).eq("locked", true);
-  const { count: soloUnits } = await admin.from("units").select("id", { count: "exact", head: true }).eq("unit_type", "solo");
   const { count: teamUnits } = await admin.from("units").select("id", { count: "exact", head: true }).eq("unit_type", "team");
   const { count: totalSubmissions } = await admin.from("submissions").select("id", { count: "exact", head: true });
   const { count: passedSubmissions } = await admin.from("submissions").select("id", { count: "exact", head: true }).eq("passed", true);
@@ -37,7 +36,7 @@ export async function GET() {
 
   return NextResponse.json({
     users: { total: totalUsers ?? 0, profile_complete: profileComplete ?? 0 },
-    units: { total: totalUnits ?? 0, locked: lockedUnits ?? 0, solo: soloUnits ?? 0, team: teamUnits ?? 0 },
+    units: { total: totalUnits ?? 0, locked: lockedUnits ?? 0, team: teamUnits ?? 0 },
     submissions: { total: totalSubmissions ?? 0, passed: passedSubmissions ?? 0 },
     invites: { pending: pendingInvites ?? 0 },
     rounds: { passed: roundsPassed, in_progress: roundsInProgress },

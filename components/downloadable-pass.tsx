@@ -30,7 +30,7 @@ export default function DownloadablePass({
   semester: string;
   passCode: string;
   role?: string;
-  unitInfo?: { type: "solo" | "team"; name: string } | null;
+  unitInfo?: { name: string } | null;
 }) {
   const passContainerRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);

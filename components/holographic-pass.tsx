@@ -23,7 +23,7 @@ interface HolographicPassProps {
   isError: boolean;
   passCode?: string;
   role?: string;
-  unitInfo?: { type: "solo" | "team"; name: string } | null;
+  unitInfo?: { name: string } | null;
 }
 
 export default function HolographicPass({
@@ -427,7 +427,7 @@ export default function HolographicPass({
                       display: "inline-block",
                     }}
                   >
-                    {unitInfo.type === "solo" ? "SOLO" : unitInfo.name}
+                    {unitInfo.name}
                   </span>
                 )}
               </div>

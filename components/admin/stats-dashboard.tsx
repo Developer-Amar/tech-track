@@ -7,7 +7,7 @@ import { Activity, ShieldAlert, CheckCircle2, XCircle, Database, Server, Refresh
 
 type Stats = {
   users: { total: number; profile_complete: number };
-  units: { total: number; locked: number; solo: number; team: number };
+  units: { total: number; locked: number; team: number };
   submissions: { total: number; passed: number };
   invites: { pending: number };
   rounds: { passed: number; in_progress: number };
@@ -63,7 +63,7 @@ export default function StatsDashboard() {
 
   const cards = [
     { label: "REGISTERED PLAYERS", value: stats.users.total, sub: `${stats.users.profile_complete} completed profiles` },
-    { label: "TOTAL PARTICIPATING TEAMS", value: stats.units.total, sub: `${stats.units.solo} solo units · ${stats.units.team} teams` },
+    { label: "TOTAL PARTICIPATING TEAMS", value: stats.units.total, sub: `${stats.units.team} registered teams` },
     { label: "LOCKED TEAMS", value: stats.units.locked, sub: `out of ${stats.units.total} total teams` },
     { label: "CODE SUBMISSIONS", value: stats.submissions.total, sub: `${stats.submissions.passed} passed test suites` },
     { label: "ACTIVE ROUNDS", value: stats.rounds.in_progress, sub: `${stats.rounds.passed} rounds completed` },

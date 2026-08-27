@@ -81,7 +81,7 @@ export async function GET() {
     (units ?? []).map((u) => [
       u.id,
       {
-        name: u.name || `Solo — ${leaderMap.get(u.leader_id) ?? "Unknown"}`,
+        name: u.name || leaderMap.get(u.leader_id) || "Unknown Team",
         unit_type: u.unit_type,
       },
     ])

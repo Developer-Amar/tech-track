@@ -317,7 +317,7 @@ export default function BarcodeScanner() {
           {!result.unit && (
             <div className="border-t border-dormant/10 p-4">
               <p className="text-amber-500 text-[10px] font-mono uppercase">
-                ⚠ No team/solo unit assigned yet
+                ⚠ No team assigned yet
               </p>
             </div>
           )}

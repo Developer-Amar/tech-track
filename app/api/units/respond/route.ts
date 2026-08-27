@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 
     if (existingMembership) {
       return NextResponse.json(
-        { error: "You're already part of a team or locked as solo." },
+        { error: "You're already part of a team." },
         { status: 400 }
       );
     }

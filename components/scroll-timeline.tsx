@@ -21,7 +21,7 @@ const TIMELINE_NODES = [
     title: "ASSEMBLE YOUR SQUAD",
     subtitle: "REGISTRATION PHASE",
     description:
-      "Form a team of elite coders or brave the trek solo. Lock in your roster before the gates close. Your unit is your lifeline.",
+      "Assemble a team of 2–4 elite coders. Lock in your roster before the gates close. Your squad is your lifeline.",
     glowColor: "#4B0082",
     icon: Shield,
   },

@@ -47,7 +47,7 @@ export async function GET() {
 
     leaderboard.push({
       unit_id: unit.id,
-      name: unit.name || leader?.name || "Solo",
+      name: unit.name || leader?.name || "Unknown Team",
       unit_type: unit.unit_type,
       rounds_completed: roundsCompleted,
       total_points: totalPoints,

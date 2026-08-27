@@ -42,7 +42,7 @@ export default function SettingsPanel({
               <span className="flex items-center gap-2 text-white font-bold mb-2 uppercase tracking-widest text-xs">
                 <Unlock className="w-4 h-4 text-green-400" /> STATUS: OPEN
               </span>
-              Closing registration will <span className="text-red-400 font-semibold">lock all teams</span>, expire pending invites, convert unfilled teams to solo status, and generate verification codes. This action is irreversible.
+              Closing registration will <span className="text-red-400 font-semibold">lock all teams</span>, expire pending invites, disqualify unfilled teams, and generate verification codes. This action is irreversible.
             </p>
             <CloseRegistrationButton />
           </div>

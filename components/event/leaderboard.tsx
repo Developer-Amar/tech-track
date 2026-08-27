@@ -92,7 +92,7 @@ export default function Leaderboard() {
                   <h4 className={`font-display text-2xl md:text-3xl font-bold uppercase truncate ${style.text}`}>
                     {entry.name}
                   </h4>
-                  <p className="font-mono text-xs text-muted capitalize opacity-70 mt-1">{entry.unit_type === "team" ? "👥 Team" : "👤 Solo"}</p>
+                  <p className="font-mono text-xs text-muted capitalize opacity-70 mt-1">👥 Team</p>
                 </div>
                 <div className="flex justify-between items-end border-t border-white/10 pt-4 mt-auto">
                   <div>
@@ -144,7 +144,7 @@ export default function Leaderboard() {
               {entry.rounds_completed}
             </div>
             <div className="col-span-2 md:col-span-1 font-mono text-[10px] text-muted uppercase tracking-widest">
-              {entry.unit_type === "team" ? "TEAM" : "SOLO"}
+              TEAM
             </div>
             <div className="col-span-3 md:col-span-2 text-right font-mono text-[10px] text-muted tracking-wider">
               {entry.last_completed_at

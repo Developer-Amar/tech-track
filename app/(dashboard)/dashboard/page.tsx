@@ -93,7 +93,7 @@ export default async function DashboardPage() {
   // Fetch unit details + roster
   let unitData: {
     id: string;
-    unit_type: "solo" | "team";
+    unit_type: "team";
     name: string | null;
     leader_id: string;
     locked: boolean;
@@ -140,7 +140,7 @@ export default async function DashboardPage() {
 
       unitData = {
         id: unit.id,
-        unit_type: unit.unit_type as "solo" | "team",
+        unit_type: unit.unit_type as "team",
         name: unit.name,
         leader_id: unit.leader_id,
         locked: unit.locked,
@@ -226,12 +226,11 @@ export default async function DashboardPage() {
             ) : unitData.locked ? (
               <BentoCard delay={0.3} glowColor="signal" className="p-1">
                 <LockedStatus
-                  unitType={unitData.unit_type}
                   teamName={unitData.name}
                   members={unitData.members}
                 />
               </BentoCard>
-            ) : unitData.unit_type === "team" && isLeader ? (
+            ) : isLeader ? (
               <BentoCard delay={0.3} glowColor="purple" className="p-1">
                 <TeamRoster
                   unitId={unitData.id}
@@ -282,7 +281,7 @@ export default async function DashboardPage() {
             )}
 
             {/* Download Event Pass — shown when:
-                - Participants: team/solo is locked
+                - Participants: team is locked
                 - Admin/SuperAdmin/Staff: always (they don't need to lock) */}
             {profile.pass_code && (
               unitData?.locked || ["admin", "super_admin", "checkpoint_staff"].includes(profile.role)
@@ -302,7 +301,7 @@ export default async function DashboardPage() {
                   semester={String(profile.semester ?? "")}
                   passCode={profile.pass_code}
                   role={profile.role}
-                  unitInfo={unitData ? { type: unitData.unit_type, name: unitData.name ?? "Solo" } : null}
+                  unitInfo={unitData ? { name: unitData.name ?? "Your Team" } : null}
                 />
               </BentoCard>
             )}

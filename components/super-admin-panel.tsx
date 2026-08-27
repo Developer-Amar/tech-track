@@ -255,7 +255,7 @@ export default function SuperAdminPanel({
               >
                 <div>
                   <p className="text-text font-display text-lg uppercase tracking-wide font-bold">
-                    {unit.name || `SOLO — ${unit.leader_name}`}
+                    {unit.name || unit.leader_name || "Unnamed Team"}
                     <span className="ml-3 text-[10px] text-dormant font-mono uppercase font-semibold">
                       ({unit.unit_type})
                     </span>

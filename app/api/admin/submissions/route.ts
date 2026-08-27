@@ -59,7 +59,7 @@ export async function GET(request: Request) {
     : { data: [] };
 
   const leaderMap = new Map((leaders ?? []).map(l => [l.id, l.name]));
-  const unitMap = new Map((units ?? []).map(u => [u.id, u.name || `Solo — ${leaderMap.get(u.leader_id) ?? "?"}`]));
+  const unitMap = new Map((units ?? []).map(u => [u.id, u.name || leaderMap.get(u.leader_id) || "Unknown Team"]));
 
   // Fetch telemetry logs from audit_log
   const { data: auditLogs } = await admin

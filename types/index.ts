@@ -25,9 +25,9 @@ export interface User {
   updated_at: string;
 }
 
-// ── Units (solo or team — the universal "participant entity") ──
+// ── Units (team participant entity) ──
 
-export type UnitType = "solo" | "team";
+export type UnitType = "team";
 
 export interface Unit {
   id: string;

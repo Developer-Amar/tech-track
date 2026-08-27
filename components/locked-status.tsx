@@ -6,11 +6,9 @@ type Member = {
 };
 
 export default function LockedStatus({
-  unitType,
   teamName,
   members,
 }: {
-  unitType: "solo" | "team";
   teamName: string | null;
   members: Member[];
 }) {
@@ -27,41 +25,37 @@ export default function LockedStatus({
         <div>
           <p className="font-mono text-[9px] uppercase tracking-widest text-signal font-semibold">REGISTRATION STATUS: SECURED</p>
           <h3 className="font-display text-2xl font-extrabold text-white uppercase">
-            {unitType === "solo"
-              ? "Locked in — Solo"
-              : `Locked in — ${teamName}`}
+            Locked in — {teamName}
           </h3>
         </div>
       </div>
 
-      {unitType === "team" && (
-        <div className="space-y-2 mt-4">
-          <p className="font-mono text-[9px] uppercase tracking-widest text-dormant mb-2 font-semibold">CONFIRMED TEAM MEMBERS</p>
-          {members
-            .filter((m) => m.status === "accepted")
-            .map((member) => (
-              <div
-                key={member.email}
-                className="flex items-center justify-between rounded-xl border border-dormant/15 bg-void/30 px-4 py-2.5"
-              >
-                <div>
-                  <p className="text-text font-body text-sm font-semibold">
-                    {member.name}
-                    {member.is_leader && (
-                      <span className="ml-2 text-[9px] text-signal font-mono uppercase tracking-wider font-bold">
-                        [LEADER]
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-dormant font-mono text-xs">{member.email}</p>
-                </div>
-                <span className="rounded bg-signal/10 border border-signal/25 px-2.5 py-0.5 text-[9px] font-mono uppercase tracking-wider text-signal shadow-[0_0_8px_rgba(255,30,86,0.15)]">
-                  LOCKED
-                </span>
+      <div className="space-y-2 mt-4">
+        <p className="font-mono text-[9px] uppercase tracking-widest text-dormant mb-2 font-semibold">CONFIRMED TEAM MEMBERS</p>
+        {members
+          .filter((m) => m.status === "accepted")
+          .map((member) => (
+            <div
+              key={member.email}
+              className="flex items-center justify-between rounded-xl border border-dormant/15 bg-void/30 px-4 py-2.5"
+            >
+              <div>
+                <p className="text-text font-body text-sm font-semibold">
+                  {member.name}
+                  {member.is_leader && (
+                    <span className="ml-2 text-[9px] text-signal font-mono uppercase tracking-wider font-bold">
+                      [LEADER]
+                    </span>
+                  )}
+                </p>
+                <p className="text-dormant font-mono text-xs">{member.email}</p>
               </div>
-            ))}
-        </div>
-      )}
+              <span className="rounded bg-signal/10 border border-signal/25 px-2.5 py-0.5 text-[9px] font-mono uppercase tracking-wider text-signal shadow-[0_0_8px_rgba(255,30,86,0.15)]">
+                LOCKED
+              </span>
+            </div>
+          ))}
+      </div>
 
       <div className="h-px bg-dormant/10 my-4" />
       <p className="text-dormant text-xs font-mono uppercase tracking-wider leading-relaxed">

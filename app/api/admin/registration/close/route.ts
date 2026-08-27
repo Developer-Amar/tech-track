@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
  * POST /api/admin/registration/close
  *
  * Closes registration — calls the close_registration() DB function which:
- * 1. Converts zero-acceptance teams to solo
+ * 1. Disqualifies teams with zero accepted members
  * 2. Expires pending invites
  * 3. Locks all units
  * 4. Generates unique codes per (unit × checkpoint)
