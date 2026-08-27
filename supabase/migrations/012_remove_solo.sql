@@ -82,6 +82,7 @@ $$;
 -- These views already exist from migration 008 but we recreate to ensure
 -- they work correctly with the team-only constraint.
 
+DROP VIEW IF EXISTS public.admin_unit_overview;
 DROP VIEW IF EXISTS public.leaderboard_view;
 CREATE VIEW public.leaderboard_view WITH (security_invoker = true) AS
 SELECT
