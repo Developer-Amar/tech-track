@@ -3,6 +3,72 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+// Zero-dependency Web Audio API alert sound synthesizer
+function playStrikeAlertSound(strikeNumber: number) {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
+
+    const now = ctx.currentTime;
+
+    if (strikeNumber >= 3) {
+      // Strike 3 (Lockout siren): descending glide
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(900, now);
+      osc.frequency.exponentialRampToValueAtTime(180, now + 0.65);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.65);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.65);
+    } else if (strikeNumber === 2) {
+      // Strike 2 (Urgent warning alarm): 3 rapid harsh pulses
+      for (let i = 0; i < 3; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sawtooth";
+        const startTime = now + i * 0.16;
+        osc.frequency.setValueAtTime(i % 2 === 0 ? 880 : 660, startTime);
+        gain.gain.setValueAtTime(0.28, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.13);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.13);
+      }
+    } else {
+      // Strike 1 (Attention chime): Dual harmonic chime
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc1.type = "sine";
+      osc2.type = "sine";
+      osc1.frequency.setValueAtTime(600, now);
+      osc2.frequency.setValueAtTime(450, now + 0.15);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.15);
+      osc2.start(now + 0.15);
+      osc2.stop(now + 0.45);
+    }
+  } catch {
+    // Autoplay policy before user interaction — safely ignore
+  }
+}
+
 export default function ProctorGuard({
   round,
   children,
@@ -19,6 +85,7 @@ export default function ProctorGuard({
   const [unitId, setUnitId] = useState<string | null>(null);
   const [activeDeviceBlocked, setActiveDeviceBlocked] = useState(false);
   const [activeUserName, setActiveUserName] = useState<string | null>(null);
+  const prevTabSwitchesRef = useRef<number>(0);
 
   // Generate unique device session token
   const sessionTokenRef = useRef<string>(
@@ -52,7 +119,9 @@ export default function ProctorGuard({
           setActiveUserName(data.active_user_name ?? "Another team member");
         } else {
           setActiveDeviceBlocked(false);
-          setTabSwitches(data.tab_switches ?? 0);
+          const initialSwitches = data.tab_switches ?? 0;
+          setTabSwitches(initialSwitches);
+          prevTabSwitchesRef.current = initialSwitches;
           setLimit(data.tab_switch_limit ?? 3);
           setLockedOut(data.locked_out ?? false);
           if (data.unit_id) setUnitId(data.unit_id);
@@ -98,7 +167,13 @@ export default function ProctorGuard({
       })
         .then((r) => r.json())
         .then((data) => {
-          setTabSwitches(data.tab_switches);
+          if (typeof data.tab_switches === "number") {
+            if (data.tab_switches > prevTabSwitchesRef.current) {
+              playStrikeAlertSound(data.tab_switches);
+              prevTabSwitchesRef.current = data.tab_switches;
+            }
+            setTabSwitches(data.tab_switches);
+          }
           setLimit(data.tab_switch_limit);
           if (data.locked_out) {
             setLockedOut(true);
@@ -150,7 +225,12 @@ export default function ProctorGuard({
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "proctoring_state", filter: `unit_id=eq.${unitId}` }, (payload) => {
         const updated = payload.new as any;
         if (updated) {
-          setTabSwitches(updated.tab_switches ?? 0);
+          const newSwitches = updated.tab_switches ?? 0;
+          if (newSwitches > prevTabSwitchesRef.current) {
+            playStrikeAlertSound(newSwitches);
+            prevTabSwitchesRef.current = newSwitches;
+          }
+          setTabSwitches(newSwitches);
           setLimit(updated.tab_switch_limit ?? 3);
           setLockedOut(updated.locked_out ?? false);
           if (updated.locked_out) {
@@ -235,26 +315,45 @@ export default function ProctorGuard({
 
   const remaining = Math.max(0, limit - tabSwitches);
 
+  // Dynamic visual escalation for IDE coding area
+  const escalationClasses =
+    tabSwitches === 1
+      ? "p-3 sm:p-4 rounded-2xl bg-amber-950/20 border-2 border-amber-500/50 shadow-[0_0_35px_rgba(245,158,11,0.25),inset_0_0_30px_rgba(245,158,11,0.1)] transition-all duration-500"
+      : tabSwitches >= 2
+      ? "p-3 sm:p-4 rounded-2xl bg-red-950/30 border-2 border-red-500/70 shadow-[0_0_55px_rgba(239,68,68,0.4),inset_0_0_40px_rgba(239,68,68,0.2)] animate-pulse transition-all duration-500"
+      : "p-1 rounded-2xl border border-transparent transition-all duration-500";
+
   return (
-    <div data-proctor-zone>
+    <div data-proctor-zone className={escalationClasses}>
       {tabSwitches > 0 && (
         <div
-          className={`rounded-lg px-4 py-3 mb-4 border flex items-center gap-3 relative overflow-hidden transition-all duration-300 ${
+          className={`rounded-xl px-4 py-3.5 mb-4 border flex items-center justify-between gap-3 relative overflow-hidden transition-all duration-300 ${
             remaining <= 1
-              ? "bg-danger/10 border-danger/45 text-text shadow-[0_0_15px_rgba(239,68,68,0.15)] animate-pulse"
-              : "bg-yellow-500/5 border-yellow-500/25 text-text"
+              ? "bg-red-950/90 border-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+              : "bg-amber-950/90 border-amber-500/70 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
           }`}
         >
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${
-              remaining <= 1 ? "bg-danger animate-ping" : "bg-yellow-500"
-            }`}
-          />
-          <div className="flex-1 min-w-0 font-mono text-xs uppercase tracking-wider">
-            <span>
-              Proctor Warning: Focus loss or tab switches detected ({tabSwitches}/{limit}) —{" "}
-              {remaining === 1 ? "FINAL WARNING BEFORE LOCKOUT!" : `${remaining} warnings remaining`}
-            </span>
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-block h-3 w-3 rounded-full shrink-0 ${
+                remaining <= 1 ? "bg-red-500 animate-ping" : "bg-amber-400 animate-pulse"
+              }`}
+            />
+            <div className="font-mono text-xs uppercase tracking-wider">
+              <span className="font-bold block sm:inline">
+                {remaining <= 1
+                  ? "🚨 CRITICAL WARNING: STRIKE 2 OF 3 DETECTED!"
+                  : "⚠️ ATTENTION: STRIKE 1 OF 3 DETECTED (FOCUS LOSS)"}
+              </span>
+              <span className="opacity-80 block sm:inline sm:ml-2">
+                {remaining <= 1
+                  ? "NEXT TAB SWITCH WILL LOCK OUT ENTIRE TEAM FROM CONSOLE!"
+                  : `1 tab switch recorded. ${remaining} chances remaining.`}
+              </span>
+            </div>
+          </div>
+          <div className="shrink-0 font-mono text-xs font-bold px-2.5 py-1 rounded bg-black/50 border border-white/15">
+            STRIKES: {tabSwitches}/{limit}
           </div>
         </div>
       )}

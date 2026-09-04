@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import BentoCard from "@/components/bento-card";
-import { ShieldAlert, AlertTriangle, Radio, Users, CheckCircle2, XCircle } from "lucide-react";
+import { ShieldAlert, AlertTriangle, Radio, Users, CheckCircle2, XCircle, Send, Loader2 } from "lucide-react";
 
 type UnitInfo = {
   id: string;
@@ -31,6 +31,7 @@ export default function SuperAdminPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
+  const [announcementState, setAnnouncementState] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   async function runOverride(body: Record<string, unknown>) {
     setLoading(body.action as string);
@@ -220,22 +221,66 @@ export default function SuperAdminPanel({
               onClick={async () => {
                 const input = document.getElementById("announcement-input") as HTMLInputElement;
                 const priority = document.getElementById("announcement-priority") as HTMLSelectElement;
-                if (!input.value.trim()) return;
+                if (!input.value.trim() || announcementState === "sending") return;
+                setAnnouncementState("sending");
                 setLoading("announcement");
-                const res = await fetch("/api/admin/announcements", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ content: input.value.trim(), priority: priority.value }),
-                });
-                const data = await res.json();
-                setMessage(data.success ? "Announcement sent!" : (data.error || "Failed"));
-                if (data.success) input.value = "";
-                setLoading(null);
+                try {
+                  const res = await fetch("/api/admin/announcements", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ content: input.value.trim(), priority: priority.value }),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setAnnouncementState("sent");
+                    setMessage("Announcement broadcasted successfully!");
+                    input.value = "";
+                    setTimeout(() => setAnnouncementState("idle"), 2500);
+                  } else {
+                    setAnnouncementState("error");
+                    setMessage(data.error || "Broadcast failed");
+                    setTimeout(() => setAnnouncementState("idle"), 3000);
+                  }
+                } catch {
+                  setAnnouncementState("error");
+                  setMessage("Network error broadcasting announcement");
+                  setTimeout(() => setAnnouncementState("idle"), 3000);
+                } finally {
+                  setLoading(null);
+                }
               }}
-              disabled={loading !== null}
-              className="btn-cyber px-5 py-2 rounded-lg text-xs uppercase"
+              disabled={loading !== null || announcementState === "sending"}
+              className={`px-5 py-2 rounded-lg text-xs uppercase font-mono font-semibold flex items-center justify-center gap-2 transition-all duration-300 min-w-[120px] select-none ${
+                announcementState === "sending"
+                  ? "bg-[#7DF9FF]/20 border border-[#7DF9FF] text-[#7DF9FF] cursor-wait"
+                  : announcementState === "sent"
+                  ? "bg-emerald-500/20 border border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.35)] scale-105"
+                  : announcementState === "error"
+                  ? "bg-red-500/20 border border-red-500 text-red-400"
+                  : "btn-cyber hover:scale-[1.02] active:scale-[0.98]"
+              }`}
             >
-              SEND
+              {announcementState === "sending" ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#7DF9FF]" />
+                  <span>DISPATCHING...</span>
+                </>
+              ) : announcementState === "sent" ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>DISPATCHED!</span>
+                </>
+              ) : announcementState === "error" ? (
+                <>
+                  <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  <span>FAILED</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>SEND</span>
+                </>
+              )}
             </button>
           </div>
         </div>

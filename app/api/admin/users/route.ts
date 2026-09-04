@@ -23,7 +23,7 @@ export async function GET() {
 
   const { data: users } = await admin
     .from("users")
-    .select("id, name, email, mobile_number, roll_no, branch, semester, role, profile_completed, created_at")
+    .select("id, name, email, mobile_number, roll_no, branch, semester, role, profile_completed, created_at, pass_code")
     .order("created_at", { ascending: false });
 
   if (!users) return NextResponse.json({ users: [] });
@@ -69,8 +69,8 @@ export async function PATCH(request: Request) {
   if (authError || !user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
-  if (profile?.role !== "super_admin") {
-    return NextResponse.json({ error: "Super Admin only" }, { status: 403 });
+  if (!profile || !["admin", "super_admin"].includes(profile.role)) {
+    return NextResponse.json({ error: "Access denied: Admin role required" }, { status: 403 });
   }
 
   let body: { user_id: string; updates: Record<string, unknown> };
@@ -84,8 +84,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "user_id and updates required" }, { status: 400 });
   }
 
+  if ("role" in body.updates && profile.role !== "super_admin") {
+    return NextResponse.json({ error: "Super Admin only can modify roles" }, { status: 403 });
+  }
+
   // Only allow specific fields to be edited
-  const allowed = ["name", "role", "branch", "semester", "roll_no", "mobile_number"];
+  const allowed = ["name", "role", "branch", "semester", "roll_no", "mobile_number", "pass_code"];
   const safeUpdates: Record<string, unknown> = {};
   for (const [key, val] of Object.entries(body.updates)) {
     if (allowed.includes(key)) safeUpdates[key] = val;

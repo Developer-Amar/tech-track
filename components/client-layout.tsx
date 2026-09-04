@@ -5,6 +5,7 @@ import Lenis from "lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import WebGLBackground from "./webgl-background";
+import GlobalAnnouncements from "./global-announcements";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -37,6 +38,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <>
       <WebGLBackground />
+      <GlobalAnnouncements />
       <div className="relative z-10 w-full min-h-screen">
         {children}
       </div>

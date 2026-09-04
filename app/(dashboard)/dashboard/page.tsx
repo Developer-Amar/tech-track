@@ -9,7 +9,11 @@ import LockedStatus from "@/components/locked-status";
 import BentoCard from "@/components/bento-card";
 import KineticText from "@/components/kinetic-text";
 import DownloadablePass from "@/components/downloadable-pass";
+import AnnouncementsModal from "@/components/announcements-modal";
 import { User, Activity, AlertCircle } from "lucide-react";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 /**
  * Dashboard page — Redesigned Legendary Carbon Dashboard
@@ -32,8 +36,10 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // ── Fetch registration state ──────────────────────────────────────────
-  const { data: settings } = await supabase
+  const adminSupabase = createAdminClient();
+
+  // ── Fetch registration state & settings via adminSupabase (bypasses RLS delays) ──
+  const { data: settings } = await adminSupabase
     .from("event_settings")
     .select("registration_open, event_live")
     .eq("id", 1)
@@ -42,7 +48,7 @@ export default async function DashboardPage() {
   const registrationOpen = settings?.registration_open ?? true;
 
   // Find the user's accepted membership
-  const { data: acceptedMembership } = await supabase
+  const { data: acceptedMembership } = await adminSupabase
     .from("unit_members")
     .select("unit_id")
     .eq("user_id", user.id)
@@ -51,15 +57,13 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   // Find any pending invites
-  const adminSupabase = createAdminClient();
-
   const pendingInvites: {
     unit_id: string;
     team_name: string | null;
     leader_name: string;
   }[] = [];
 
-  const { data: pendingMemberships } = await supabase
+  const { data: pendingMemberships } = await adminSupabase
     .from("unit_members")
     .select("unit_id")
     .eq("user_id", user.id)
@@ -106,7 +110,7 @@ export default async function DashboardPage() {
   } | null = null;
 
   if (acceptedMembership) {
-    const { data: unit } = await supabase
+    const { data: unit } = await adminSupabase
       .from("units")
       .select("id, unit_type, name, leader_id, locked")
       .eq("id", acceptedMembership.unit_id)
@@ -169,6 +173,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <AnnouncementsModal />
             {["admin", "super_admin"].includes(profile.role) && (
               <a
                 href="/admin"
@@ -244,7 +249,10 @@ export default async function DashboardPage() {
             )}
 
             {/* Event active/inactive portal link */}
-            {unitData?.locked && settings?.event_live ? (
+            {Boolean(
+              settings?.event_live &&
+              (unitData?.locked || ["admin", "super_admin", "checkpoint_staff"].includes(profile.role))
+            ) ? (
               <a href="/event" className="block">
                 <BentoCard delay={0.5} glowColor="signal" className="p-8 border border-[#7DF9FF]/40 bg-[#7DF9FF]/5 group cursor-pointer">
                   <div className="absolute top-6 right-6 flex items-center gap-2">
@@ -260,14 +268,18 @@ export default async function DashboardPage() {
                 </BentoCard>
               </a>
             ) : (
-              <BentoCard delay={0.5} glowColor="default" className="p-8 opacity-60 flex flex-col items-center text-center">
+              <BentoCard delay={0.5} glowColor="default" className="p-8 opacity-75 flex flex-col items-center text-center">
                 <h3 className="font-display text-2xl font-bold text-muted uppercase tracking-wider mb-3">
                   EVENT DORMANT
                 </h3>
                 <p className="text-muted text-sm font-body leading-relaxed max-w-sm">
-                  {!unitData?.locked
-                    ? "Ensure registration is locked to initialize verification access."
-                    : "The hunt begins once the organizers start the countdown clock."}
+                  {!settings?.event_live
+                    ? "The hunt begins once the organizers start the countdown clock."
+                    : !unitData
+                    ? "Join or create a team to prepare for the live hunt arena."
+                    : !unitData.locked
+                    ? "Your team is registered! Registration must be locked (by your team leader or organizers) before entering the arena."
+                    : "Access to arena will unlock momentarily."}
                 </p>
               </BentoCard>
             )}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash2, Ban, AlertTriangle, Skull, ShieldOff, ChevronDown, ChevronRight } from "lucide-react";
+import { Trash2, Ban, AlertTriangle, Skull, ShieldOff, ChevronDown, ChevronRight, Edit3, CreditCard } from "lucide-react";
+import EditPassModal, { type EditableUserData } from "./edit-pass-modal";
 
 type User = {
   id: string;
@@ -14,6 +15,7 @@ type User = {
   role: string;
   profile_completed: boolean;
   created_at: string;
+  pass_code: string | null;
   unit: { unit_name: string; unit_type: string; status: string } | null;
 };
 
@@ -43,11 +45,12 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
   const [blockedEmails, setBlockedEmails] = useState<BlockedEmail[]>([]);
   const [showBlocked, setShowBlocked] = useState(false);
   const [unblocking, setUnblocking] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<EditableUserData | null>(null);
 
   useEffect(() => {
     fetchUsers();
     if (isSuperAdmin) fetchBlocked();
-  }, []);
+  }, [isSuperAdmin]);
 
   function fetchUsers() {
     setLoading(true);
@@ -356,7 +359,25 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
 
             {expanded === u.id && (
               <div className="border-t border-dormant/15 px-4 py-4 bg-void/60 select-text">
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/5">
+                  <div className="flex items-center gap-2 font-mono text-[10px] text-muted uppercase tracking-wider">
+                    <CreditCard className="w-3.5 h-3.5 text-[#7DF9FF]" />
+                    <span>USER PASS DETAILS & CREDENTIALS</span>
+                  </div>
+                  <button
+                    onClick={() => setEditingUser(u)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#7DF9FF]/30 bg-[#7DF9FF]/10 text-[#7DF9FF] hover:bg-[#7DF9FF]/20 hover:border-[#7DF9FF] font-mono text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 shadow-[0_0_10px_rgba(125,249,255,0.1)]"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    <span>EDIT PASS</span>
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
+                  <div>
+                    <p className="text-dormant text-[9px] uppercase tracking-widest mb-0.5 font-semibold">Pass Code</p>
+                    <p className="text-[#7DF9FF] font-bold tracking-wider">{u.pass_code || "—"}</p>
+                  </div>
                   <div>
                     <p className="text-dormant text-[9px] uppercase tracking-widest mb-0.5 font-semibold">Roll No</p>
                     <p className="text-text">{u.roll_no || "—"}</p>
@@ -383,7 +404,7 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
                     <p className="text-dormant text-[9px] uppercase tracking-widest mb-0.5 font-semibold">Joined Date</p>
                     <p className="text-text">{new Date(u.created_at).toLocaleDateString()}</p>
                   </div>
-                  <div className="col-span-2">
+                  <div>
                     <p className="text-dormant text-[9px] uppercase tracking-widest mb-0.5 font-semibold">Assigned Team</p>
                     <p className="text-text">
                       {u.unit ? `${u.unit.unit_name} (${u.unit.unit_type.toUpperCase()})` : "UNREGISTERED"}
@@ -459,6 +480,30 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
           </div>
         ))}
       </div>
+
+      {/* ── Edit User Pass Modal ── */}
+      {editingUser && (
+        <EditPassModal
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSaveSuccess={(updated) => {
+            setUsers((prev) =>
+              prev.map((u) =>
+                u.id === updated.id
+                  ? {
+                      ...u,
+                      roll_no: updated.roll_no,
+                      branch: updated.branch,
+                      semester: updated.semester,
+                      mobile_number: updated.mobile_number,
+                      pass_code: updated.pass_code,
+                    }
+                  : u
+              )
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
