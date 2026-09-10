@@ -16,16 +16,19 @@ import {
   ShieldAlert,
   Loader2,
   RefreshCw,
-  ExternalLink,
+  Upload,
+  SwitchCamera,
+  Info,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════════
    ENHANCED PASS SCANNER & AUTO-VERIFICATION ECOSYSTEM
    For Checkpoint Staff, Admins, and Super Admins.
-   • Scans ID pass QR of ANY team member (leader or member)
-   • Resolves team roster, active round, and secret outpost code
+   • Auto-detects all cameras (front, back, external webcams)
+   • Falls back gracefully from rear to front/webcam if on desktop
+   • Detailed permission & HTTPS diagnostics
+   • Image/Photo upload fallback for non-WebRTC environments
    • Auto-advances the team immediately if Auto-Verify is toggled ON
-   • Features Outpost Mismatch protection & manual fallback controls
    ═══════════════════════════════════════════════════════════════════ */
 
 type ScannedUser = {
@@ -88,8 +91,13 @@ type ScanResult = {
   scannedAt: string;
 };
 
+type CameraDevice = {
+  id: string;
+  label: string;
+};
+
 /**
- * Web Audio sound effects (synthesized on-the-fly, no asset network lag).
+ * Web Audio sound effects (synthesized on-the-fly, zero network latency).
  */
 function playAudioTone(type: "scan" | "success" | "warn") {
   try {
@@ -131,7 +139,7 @@ function playAudioTone(type: "scan" | "success" | "warn") {
       osc.stop(now + 0.08);
     }
   } catch {
-    // AudioContext blocked by policy
+    // AudioContext blocked by browser policy
   }
 }
 
@@ -144,6 +152,7 @@ export default function BarcodeScanner({
   const [manualCode, setManualCode] = useState("");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [permissionTip, setPermissionTip] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifySuccessMsg, setVerifySuccessMsg] = useState<string | null>(null);
@@ -154,12 +163,15 @@ export default function BarcodeScanner({
   const [availableOutposts, setAvailableOutposts] = useState<
     { round: number; location: string }[]
   >([]);
+  const [availableCameras, setAvailableCameras] = useState<CameraDevice[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>("");
   const [copiedCode, setCopiedCode] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const scannerDivId = "barcode-scanner-viewport";
 
-  // Fetch available checkpoints from codes API if available
+  // Fetch available checkpoints from codes API
   useEffect(() => {
     fetch("/api/admin/codes")
       .then((res) => (res.ok ? res.json() : null))
@@ -180,7 +192,7 @@ export default function BarcodeScanner({
       .catch(() => {});
   }, []);
 
-  // Stop scanner on unmount
+  // Cleanup scanner on unmount
   useEffect(() => {
     return () => {
       if (scannerRef.current?.isScanning) {
@@ -259,6 +271,7 @@ export default function BarcodeScanner({
     async (code: string, triggeredByCamera = false) => {
       setLoading(true);
       setError(null);
+      setPermissionTip(null);
       setResult(null);
       setVerifySuccessMsg(null);
 
@@ -322,39 +335,132 @@ export default function BarcodeScanner({
     [autoVerify, selectedOutpost, verifyTeamAtCheckpoint]
   );
 
-  // ── Camera Scanner Controls ──────────────────────────────────────────
+  // ── Camera Scanner Controls (Robust Multi-Camera Fallback) ────────────
   const startScanner = useCallback(async () => {
     setScanning(true);
     setResult(null);
     setError(null);
+    setPermissionTip(null);
     setVerifySuccessMsg(null);
 
-    try {
-      const scanner = new Html5Qrcode(scannerDivId);
-      scannerRef.current = scanner;
-
-      await scanner.start(
-        { facingMode: "environment" },
-        {
-          fps: 12,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-        },
-        async (decodedText) => {
-          // Stop camera after successful detection
-          await scanner.stop().catch(() => {});
-          setScanning(false);
-          lookupCode(decodedText, true);
-        },
-        () => {
-          // Frame scan miss (normal during scanning)
-        }
+    // 1. Insecure context check (browsers block getUserMedia over plain HTTP IP)
+    if (
+      typeof window !== "undefined" &&
+      !window.isSecureContext &&
+      window.location.hostname !== "localhost" &&
+      window.location.hostname !== "127.0.0.1"
+    ) {
+      setError("Camera access is blocked by your browser on insecure HTTP connections.");
+      setPermissionTip(
+        "Modern browsers strictly restrict live cameras to HTTPS or localhost. Please access this app via HTTPS or localhost, or use the 'Upload QR Photo' button below."
       );
-    } catch {
-      setError("Camera access denied or device has no accessible camera.");
+      setScanning(false);
+      return;
+    }
+
+    try {
+      // 2. Instantiate or reuse scanner
+      let scanner = scannerRef.current;
+      if (!scanner) {
+        scanner = new Html5Qrcode(scannerDivId);
+        scannerRef.current = scanner;
+      }
+
+      // 3. Enumerate available cameras
+      let devices: CameraDevice[] = [];
+      try {
+        const rawDevices = await Html5Qrcode.getCameras();
+        if (rawDevices && rawDevices.length > 0) {
+          devices = rawDevices.map((d) => ({ id: d.id, label: d.label || ("Camera " + d.id) }));
+          setAvailableCameras(devices);
+        }
+      } catch {
+        // getCameras enumeration might fail before permission; continue to fallback
+      }
+
+      const qrConfig = {
+        fps: 12,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+      };
+
+      const onScanSuccess = async (decodedText: string) => {
+        if (scannerRef.current?.isScanning) {
+          await scannerRef.current.stop().catch(() => {});
+        }
+        setScanning(false);
+        lookupCode(decodedText, true);
+      };
+
+      const onScanFailure = () => {
+        // Normal miss during scanning search
+      };
+
+      // 4. Start with best available camera target
+      let started = false;
+
+      // If user selected a specific camera
+      if (selectedCameraId && devices.some((d) => d.id === selectedCameraId)) {
+        try {
+          await scanner.start(selectedCameraId, qrConfig, onScanSuccess, onScanFailure);
+          started = true;
+        } catch {
+          // Fall through to auto-detection
+        }
+      }
+
+      // If not started, pick rear camera (mobile) or default camera
+      if (!started && devices.length > 0) {
+        const rear = devices.find((d) => /back|rear|environment/i.test(d.label));
+        const targetId = rear ? rear.id : devices[0].id;
+        setSelectedCameraId(targetId);
+        try {
+          await scanner.start(targetId, qrConfig, onScanSuccess, onScanFailure);
+          started = true;
+        } catch {
+          // If specified ID fails, fall through to facingMode
+        }
+      }
+
+      // If still not started, try facingMode environment
+      if (!started) {
+        try {
+          await scanner.start({ facingMode: "environment" }, qrConfig, onScanSuccess, onScanFailure);
+          started = true;
+        } catch {
+          // Fall back to user-facing or any default camera (common on laptops/desktops with only front webcams!)
+          await scanner.start({ facingMode: "user" }, qrConfig, onScanSuccess, onScanFailure);
+          started = true;
+        }
+      }
+    } catch (err: any) {
+      const errName = err?.name || "";
+      const errMsg = err?.message || String(err);
+
+      if (errName === "NotAllowedError" || errMsg.includes("Permission") || errMsg.includes("denied")) {
+        setError("Camera permission was denied.");
+        setPermissionTip(
+          "Click the lock or camera icon in your browser address bar (next to the URL), change Camera to 'Allow', and refresh the page."
+        );
+      } else if (errName === "OverconstrainedError" || errName === "NotFoundError" || errMsg.includes("Requested device not found")) {
+        setError("No compatible video camera was found on this device.");
+        setPermissionTip(
+          "If your laptop or PC has no rear camera or webcam, you can enter the 8-character pass code manually, or use the 'Upload QR Photo' button below."
+        );
+      } else if (errName === "NotReadableError" || errMsg.includes("in use") || errMsg.includes("Could not start video source")) {
+        setError("Camera is currently in use by another application.");
+        setPermissionTip(
+          "Close any other apps using your camera (such as Zoom, Teams, or another browser tab) and try again."
+        );
+      } else {
+        setError(`Camera error: ${errMsg || "Failed to initialize video feed."}`);
+        setPermissionTip(
+          "You can still verify attendees immediately using the manual pass code input or the image upload button."
+        );
+      }
       setScanning(false);
     }
-  }, [lookupCode]);
+  }, [lookupCode, selectedCameraId]);
 
   const stopScanner = useCallback(async () => {
     if (scannerRef.current?.isScanning) {
@@ -362,6 +468,66 @@ export default function BarcodeScanner({
     }
     setScanning(false);
   }, []);
+
+  // ── Switch Camera on Mobile / Multi-Camera Devices ────────────────────
+  const switchCamera = useCallback(async () => {
+    if (availableCameras.length <= 1) return;
+    const currentIndex = availableCameras.findIndex((c) => c.id === selectedCameraId);
+    const nextIndex = (currentIndex + 1) % availableCameras.length;
+    const nextCamera = availableCameras[nextIndex];
+    setSelectedCameraId(nextCamera.id);
+
+    if (scannerRef.current?.isScanning) {
+      await scannerRef.current.stop().catch(() => {});
+      try {
+        await scannerRef.current.start(
+          nextCamera.id,
+          { fps: 12, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+          async (text) => {
+            await scannerRef.current?.stop().catch(() => {});
+            setScanning(false);
+            lookupCode(text, true);
+          },
+          () => {}
+        );
+      } catch {
+        setError("Failed to switch camera feed.");
+      }
+    }
+  }, [availableCameras, lookupCode, selectedCameraId]);
+
+  // ── Scan from Photo / Image File Upload (Bypasses WebRTC constraints) ──
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    setError(null);
+    setPermissionTip(null);
+    setVerifySuccessMsg(null);
+
+    try {
+      let scanner = scannerRef.current;
+      if (!scanner) {
+        scanner = new Html5Qrcode(scannerDivId);
+        scannerRef.current = scanner;
+      }
+
+      const decodedText = await scanner.scanFile(file, false);
+      lookupCode(decodedText, true);
+    } catch {
+      playAudioTone("warn");
+      setError("No valid QR code was detected in the uploaded image.");
+      setPermissionTip(
+        "Make sure the pass image is clear, well-lit, and the QR code square is fully visible."
+      );
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   const handleManualLookup = (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,6 +544,15 @@ export default function BarcodeScanner({
 
   return (
     <div className="space-y-4 text-left">
+      {/* Hidden File Input for Image Scanning */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* HUD Header Controls */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 rounded-xl border border-signal/20 bg-void/60 backdrop-blur-md">
         {/* Station Filter Dropdown */}
@@ -388,7 +563,7 @@ export default function BarcodeScanner({
           <select
             value={selectedOutpost}
             onChange={(e) => setSelectedOutpost(e.target.value)}
-            className="rounded-lg border border-signal/30 bg-void px-3 py-1.5 text-text font-mono text-xs focus:border-signal focus:outline-none transition-all"
+            className="rounded-lg border border-signal/30 bg-void px-3 py-1.5 text-text font-mono text-xs focus:border-signal focus:outline-none transition-all cursor-pointer"
           >
             <option value="ALL">🌐 ALL OUTPOSTS (FLOATING ADMIN)</option>
             {availableOutposts.map((op) => (
@@ -414,7 +589,7 @@ export default function BarcodeScanner({
         </label>
       </div>
 
-      {/* Camera Trigger & Manual Input Bar */}
+      {/* Scanner Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3">
         {!scanning ? (
           <button
@@ -425,14 +600,37 @@ export default function BarcodeScanner({
             START CAMERA SCANNER
           </button>
         ) : (
-          <button
-            onClick={stopScanner}
-            className="flex items-center justify-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-danger text-xs uppercase font-display flex-1 hover:bg-danger/20 transition-all"
-          >
-            <CameraOff className="w-4 h-4" />
-            STOP CAMERA SCANNER
-          </button>
+          <div className="flex gap-2 flex-1">
+            <button
+              onClick={stopScanner}
+              className="flex items-center justify-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-danger text-xs uppercase font-display flex-1 hover:bg-danger/20 transition-all"
+            >
+              <CameraOff className="w-4 h-4" />
+              STOP SCANNER
+            </button>
+            {availableCameras.length > 1 && (
+              <button
+                onClick={switchCamera}
+                className="btn-cyber-outline px-3 py-3 rounded-lg text-xs flex items-center gap-1.5 shrink-0"
+                title="Switch Camera"
+              >
+                <SwitchCamera className="w-4 h-4" />
+                <span>FLIP</span>
+              </button>
+            )}
+          </div>
         )}
+
+        {/* Scan from Photo / Image File */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={loading}
+          className="btn-cyber-outline px-4 py-3 rounded-lg text-xs uppercase font-display flex items-center justify-center gap-2 shrink-0 hover:border-signal"
+          title="Upload or take a photo of the pass QR code"
+        >
+          <Upload className="w-4 h-4" />
+          <span>UPLOAD QR PHOTO</span>
+        </button>
 
         {/* Manual code input fallback */}
         <form onSubmit={handleManualLookup} className="flex gap-2 flex-1">
@@ -440,7 +638,7 @@ export default function BarcodeScanner({
             type="text"
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-            placeholder="TYPE PASS CODE (e.g. 7A8B9C10)..."
+            placeholder="PASS CODE (e.g. 7A8B9C10)..."
             maxLength={12}
             className="flex-1 rounded-lg border border-signal/25 bg-void/50 px-3.5 py-2.5 text-text font-mono text-sm focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal/30 transition-all uppercase tracking-widest text-center shadow-inner"
           />
@@ -458,11 +656,29 @@ export default function BarcodeScanner({
       {scanning && (
         <div className="rounded-xl overflow-hidden border border-signal/30 bg-void/80 relative shadow-[0_0_25px_rgba(125,249,255,0.08)]">
           <div id={scannerDivId} style={{ width: "100%", minHeight: "260px" }} />
-          <div className="p-2.5 bg-void/90 border-t border-signal/15 text-center flex items-center justify-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-signal animate-ping" />
-            <p className="text-dormant text-[10px] font-mono uppercase tracking-widest">
-              AIM AT QR CODE ON PARTICIPANT ID PASS...
-            </p>
+          <div className="p-2.5 bg-void/90 border-t border-signal/15 text-center flex items-center justify-between px-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-signal animate-ping" />
+              <p className="text-dormant text-[10px] font-mono uppercase tracking-widest">
+                AIM CAMERA AT QR CODE ON PASS...
+              </p>
+            </div>
+            {availableCameras.length > 1 && (
+              <select
+                value={selectedCameraId}
+                onChange={(e) => {
+                  setSelectedCameraId(e.target.value);
+                  stopScanner().then(() => startScanner());
+                }}
+                className="rounded bg-void border border-signal/30 text-[10px] font-mono text-dormant px-2 py-1"
+              >
+                {availableCameras.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label.slice(0, 24)}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
       )}
@@ -477,14 +693,21 @@ export default function BarcodeScanner({
         </div>
       )}
 
-      {/* Error / Warning Alert */}
+      {/* Error / Warning Alert with Guided Diagnostics */}
       {error && (
-        <div className="rounded-xl border border-danger/30 bg-danger/10 p-4 flex items-start gap-3">
-          <ShieldAlert className="w-5 h-5 text-danger shrink-0 mt-0.5" />
-          <div className="text-left">
-            <p className="text-danger font-mono text-xs font-semibold uppercase tracking-wider">
-              {error}
-            </p>
+        <div className="rounded-xl border border-danger/30 bg-danger/10 p-4 space-y-2">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="w-5 h-5 text-danger shrink-0 mt-0.5" />
+            <div>
+              <p className="text-danger font-mono text-xs font-semibold uppercase tracking-wider">
+                {error}
+              </p>
+              {permissionTip && (
+                <p className="text-dormant font-mono text-[11px] leading-relaxed mt-1">
+                  💡 {permissionTip}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
