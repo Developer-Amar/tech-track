@@ -78,13 +78,19 @@ export default function SuperAdminPanel({
       </div>
 
       {message && (
-        <div className="rounded-xl border border-signal/30 bg-signal/5 p-3">
-          <p className="text-signal text-xs font-mono font-semibold">Success: {message}</p>
+        <div className="rounded-xl border border-[#7DF9FF]/40 bg-[#7DF9FF]/10 p-3 flex items-center justify-between animate-in fade-in duration-200">
+          <p className="text-[#7DF9FF] text-xs font-mono font-semibold flex items-center gap-2">
+            <span>✓ SUCCESS:</span> {message}
+          </p>
+          <button onClick={() => setMessage(null)} className="text-[#7DF9FF]/60 hover:text-[#7DF9FF] text-xs font-mono p-1">✕</button>
         </div>
       )}
       {error && (
-        <div className="rounded-xl border border-danger/30 bg-danger/5 p-3">
-          <p className="text-danger text-xs font-mono font-semibold">Error: {error}</p>
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 flex items-center justify-between animate-in fade-in duration-200">
+          <p className="text-red-400 text-xs font-mono font-semibold flex items-center gap-2">
+            <span>⚠️ ERROR:</span> {error}
+          </p>
+          <button onClick={() => setError(null)} className="text-red-400/60 hover:text-red-400 text-xs font-mono p-1">✕</button>
         </div>
       )}
 
@@ -245,6 +251,8 @@ export default function SuperAdminPanel({
                 if (!input.value.trim() || announcementState === "sending") return;
                 setAnnouncementState("sending");
                 setLoading("announcement");
+                setMessage(null);
+                setError(null);
                 try {
                   const res = await fetch("/api/admin/announcements", {
                     method: "POST",
@@ -254,18 +262,30 @@ export default function SuperAdminPanel({
                   const data = await res.json();
                   if (data.success) {
                     setAnnouncementState("sent");
-                    setMessage("Announcement broadcasted successfully!");
+                    setMessage("Announcement broadcasted successfully to all screens!");
+                    setError(null);
                     input.value = "";
-                    setTimeout(() => setAnnouncementState("idle"), 2500);
+                    setTimeout(() => {
+                      setAnnouncementState("idle");
+                      setMessage(null);
+                    }, 4000);
                   } else {
                     setAnnouncementState("error");
-                    setMessage(data.error || "Broadcast failed");
-                    setTimeout(() => setAnnouncementState("idle"), 3000);
+                    setError(data.error || "Broadcast failed");
+                    setMessage(null);
+                    setTimeout(() => {
+                      setAnnouncementState("idle");
+                      setError(null);
+                    }, 6000);
                   }
                 } catch {
                   setAnnouncementState("error");
-                  setMessage("Network error broadcasting announcement");
-                  setTimeout(() => setAnnouncementState("idle"), 3000);
+                  setError("Network error broadcasting announcement");
+                  setMessage(null);
+                  setTimeout(() => {
+                    setAnnouncementState("idle");
+                    setError(null);
+                  }, 6000);
                 } finally {
                   setLoading(null);
                 }

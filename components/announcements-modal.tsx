@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Radio, AlertOctagon, X, RefreshCw, Bell } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 type Announcement = {
   id: string;
@@ -31,6 +32,26 @@ export default function AnnouncementsModal() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    fetchAnnouncements();
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel("announcements-modal-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "announcements" },
+        () => {
+          fetchAnnouncements();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {

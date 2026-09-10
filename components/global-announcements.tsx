@@ -86,13 +86,15 @@ export default function GlobalAnnouncements() {
           const newRow = payload.new as {
             id?: string;
             content?: string;
+            message?: string;
             priority?: string;
             created_at?: string;
           };
 
-          if (!newRow || !newRow.content) return;
+          const text = (newRow?.content || newRow?.message || "").trim();
+          if (!newRow || !text) return;
           // Ignore IDE feature toggles if stored in announcements
-          if (newRow.content.startsWith("ide_smart_features:")) return;
+          if (text.startsWith("ide_smart_features:")) return;
 
           const priority = newRow.priority || "normal";
           const isUrgent = priority === "urgent";
@@ -108,7 +110,7 @@ export default function GlobalAnnouncements() {
           setToasts((prev) => [
             {
               id: toastId,
-              content: newRow.content!,
+              content: text,
               priority,
               created_at: newRow.created_at || new Date().toISOString(),
               durationMs,

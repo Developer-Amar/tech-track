@@ -8,7 +8,9 @@ import CodeStepWrapper from "@/components/event/code-step-wrapper";
 import EventWaiting from "@/components/event/event-waiting";
 import EventComplete from "@/components/event/event-complete";
 import Leaderboard from "@/components/event/leaderboard";
+import Round2Arena from "@/components/event/round-2-arena";
 import AnnouncementsBar from "@/components/event/announcements-bar";
+import AnnouncementsModal from "@/components/announcements-modal";
 import SignOutButton from "@/components/sign-out-button";
 import BentoCard from "@/components/bento-card";
 import KineticText from "@/components/kinetic-text";
@@ -160,12 +162,15 @@ export default async function EventPage({
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
-            <a
-              href={showLeaderboard ? "/event" : "/event?tab=leaderboard"}
-              className="btn-cyber-outline px-4 py-2 rounded-xl text-xs uppercase font-display flex items-center gap-2"
-            >
-              {showLeaderboard ? <><Activity className="w-4 h-4"/> Arena Terminal</> : <><Trophy className="w-4 h-4"/> View Leaderboard</>}
-            </a>
+            <AnnouncementsModal />
+            {canSeeLeaderboardTab && (
+              <a
+                href={showLeaderboard ? "/event" : "/event?tab=leaderboard"}
+                className="btn-cyber-outline px-4 py-2 rounded-xl text-xs uppercase font-display flex items-center gap-2"
+              >
+                {showLeaderboard ? <><Activity className="w-4 h-4"/> Arena Terminal</> : <><Trophy className="w-4 h-4"/> View Leaderboard</>}
+              </a>
+            )}
             <a
               href="/dashboard"
               className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 px-4 py-2 text-muted font-body text-xs transition-all duration-300 uppercase tracking-wider font-semibold flex items-center gap-2 backdrop-blur-sm"
