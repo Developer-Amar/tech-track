@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import BentoCard from "@/components/bento-card";
-import { ShieldAlert, AlertTriangle, Radio, Users, CheckCircle2, XCircle, Send, Loader2, Unlock, Lock } from "lucide-react";
+import { ShieldAlert, AlertTriangle, Radio, Users, CheckCircle2, XCircle, Send, Loader2, Unlock, Lock, Trash2 } from "lucide-react";
 
 type UnitInfo = {
   id: string;
@@ -228,7 +228,49 @@ export default function SuperAdminPanel({
 
       {/* Broadcast Announcement */}
       <div className="pt-4 border-t border-dormant/10 space-y-3">
-        <p className="font-mono text-[9px] uppercase text-signal tracking-widest mb-1 font-semibold">BROADCAST ANNOUNCEMENT</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <p className="font-mono text-[9px] uppercase text-signal tracking-widest font-semibold flex items-center gap-1.5">
+            <Radio className="w-3.5 h-3.5 animate-pulse" /> BROADCAST ANNOUNCEMENT
+          </p>
+          <button
+            onClick={async () => {
+              if (confirmAction === "clear_announcements") {
+                setLoading("clear_announcements");
+                setMessage(null);
+                setError(null);
+                try {
+                  const res = await fetch("/api/admin/announcements", {
+                    method: "DELETE",
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setMessage("All announcements cleared successfully! Board is clean for event day.");
+                    setConfirmAction(null);
+                    router.refresh();
+                  } else {
+                    setError(data.error || "Failed to clear announcements");
+                  }
+                } catch {
+                  setError("Network error clearing announcements");
+                } finally {
+                  setLoading(null);
+                }
+              } else {
+                setConfirmAction("clear_announcements");
+                setTimeout(() => setConfirmAction((curr) => (curr === "clear_announcements" ? null : curr)), 5000);
+              }
+            }}
+            disabled={loading !== null}
+            className={`px-3 py-1.5 rounded-lg text-[10px] uppercase font-mono font-semibold transition-all duration-200 flex items-center gap-1.5 select-none w-fit ${
+              confirmAction === "clear_announcements"
+                ? "bg-red-500/20 border border-red-500 text-red-300 shadow-[0_0_15px_rgba(239,68,68,0.35)] animate-pulse"
+                : "border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/60"
+            }`}
+          >
+            <Trash2 className="w-3 h-3" />
+            <span>{confirmAction === "clear_announcements" ? "CONFIRM CLEAR ALL?" : "RESET ANNOUNCEMENTS"}</span>
+          </button>
+        </div>
         <div className="flex flex-col md:flex-row gap-3">
           <input
             type="text"

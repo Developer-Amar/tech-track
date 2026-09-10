@@ -95,3 +95,46 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true, announcement });
 }
+
+export async function DELETE() {
+  const supabase = createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
+  if (!profile || !["admin", "super_admin"].includes(profile.role)) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  const admin = createAdminClient();
+
+  // Find system settings rows (e.g. ide_smart_features) to protect them from deletion
+  const { data: sysSettings } = await admin
+    .from("announcements")
+    .select("id")
+    .like("content", "ide_smart_features:%");
+
+  const sysIds = (sysSettings ?? []).map((s: { id: string }) => s.id);
+
+  let deleteQuery = admin.from("announcements").delete();
+  if (sysIds.length > 0) {
+    deleteQuery = deleteQuery.not("id", "in", `(${sysIds.join(",")})`);
+  } else {
+    deleteQuery = deleteQuery.neq("id", "00000000-0000-0000-0000-000000000000");
+  }
+
+  const { error } = await deleteQuery;
+  if (error) {
+    console.error("Clear announcements error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Audit log
+  await admin.from("audit_log").insert({
+    actor_id: user.id,
+    action_type: "reset_announcements",
+    action_detail: { timestamp: new Date().toISOString() },
+  });
+
+  return NextResponse.json({ success: true, message: "All announcements have been cleared." });
+}

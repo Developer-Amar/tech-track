@@ -29,7 +29,9 @@ export async function setIDESmartSetting(enabled: boolean, actorId: string): Pro
     .from("announcements")
     .insert({
       author_id: actorId,
+      created_by: actorId,
       content: value,
+      message: value,
       priority: "normal",
     });
 }

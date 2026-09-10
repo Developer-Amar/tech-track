@@ -120,6 +120,17 @@ export default function GlobalAnnouncements() {
           ]);
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "announcements",
+        },
+        () => {
+          setToasts([]);
+        }
+      )
       .subscribe();
 
     return () => {
