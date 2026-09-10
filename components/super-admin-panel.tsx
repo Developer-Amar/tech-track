@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import BentoCard from "@/components/bento-card";
-import { ShieldAlert, AlertTriangle, Radio, Users, CheckCircle2, XCircle, Send, Loader2 } from "lucide-react";
+import { ShieldAlert, AlertTriangle, Radio, Users, CheckCircle2, XCircle, Send, Loader2, Unlock, Lock } from "lucide-react";
 
 type UnitInfo = {
   id: string;
@@ -13,6 +13,10 @@ type UnitInfo = {
   disqualified: boolean;
   leader_name: string;
   member_count: number;
+  proctor_locked: boolean;
+  tab_switches: number;
+  tab_switch_limit: number;
+  ai_flags_count: number;
 };
 
 export default function SuperAdminPanel({
@@ -58,7 +62,7 @@ export default function SuperAdminPanel({
   }
 
   return (
-    <BentoCard glowColor="danger" className="p-6 md:p-8 bg-black/40 border-red-500/20 relative overflow-hidden group">
+    <BentoCard glowColor="danger" hoverScale={false} className="p-6 md:p-8 bg-black/40 border-red-500/20 relative overflow-hidden group">
       <div className="absolute top-0 right-0 w-48 h-48 bg-red-500/5 rounded-full blur-3xl pointer-events-none transition-all duration-500 group-hover:bg-red-500/10 group-hover:scale-110" />
       
       <div className="border-b border-red-500/20 pb-4 mb-6 relative z-10">
@@ -176,6 +180,23 @@ export default function SuperAdminPanel({
       {/* Proctoring Controls */}
       <div className="pt-4 border-t border-dormant/10">
         <p className="font-mono text-[9px] uppercase text-signal tracking-widest mb-2 font-semibold">PROCTORING CONTROLS</p>
+        {units.filter((u) => u.proctor_locked).length > 0 && (
+          <div className="mb-3 p-3 rounded-xl border border-red-500/40 bg-red-950/40 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-red-500 animate-pulse shrink-0" />
+              <span className="text-red-300 font-mono text-xs uppercase font-bold">
+                {units.filter((u) => u.proctor_locked).length} TEAM(S) CURRENTLY LOCKED OUT BY PROCTOR
+              </span>
+            </div>
+            <button
+              onClick={() => runOverride({ action: "reset_tab_switches" })}
+              disabled={loading !== null}
+              className="px-3 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white font-mono text-[10px] uppercase font-bold transition-all shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+            >
+              UNLOCK ALL LOCKED TEAMS
+            </button>
+          </div>
+        )}
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => runOverride({ action: "reset_tab_switches" })}
@@ -214,8 +235,8 @@ export default function SuperAdminPanel({
               id="announcement-priority"
               className="rounded-lg border border-signal/20 bg-void/50 px-3 py-2 text-text font-mono text-xs focus:outline-none"
             >
-              <option value="normal" className="bg-void">NORMAL</option>
-              <option value="urgent" className="bg-void">URGENT</option>
+              <option value="normal">Normal Priority</option>
+              <option value="urgent">Urgent Priority</option>
             </select>
             <button
               onClick={async () => {
@@ -294,8 +315,12 @@ export default function SuperAdminPanel({
             {units.map((unit) => (
               <div
                 key={unit.id}
-                className={`rounded-xl border px-4 py-3 bg-void/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                  unit.disqualified ? "border-danger/25 bg-danger/5" : "border-dormant/15"
+                className={`rounded-xl border px-4 py-3.5 bg-void/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                  unit.proctor_locked
+                    ? "border-red-500/50 bg-red-950/20 shadow-[0_0_20px_rgba(239,68,68,0.15)]"
+                    : unit.disqualified
+                    ? "border-danger/25 bg-danger/5"
+                    : "border-dormant/15"
                 }`}
               >
                 <div>
@@ -305,22 +330,79 @@ export default function SuperAdminPanel({
                       ({unit.unit_type})
                     </span>
                   </p>
-                  <p className="text-dormant font-mono text-[10px] uppercase mt-1">
-                    Status: {unit.locked ? "🔒 Locked" : "🔓 Unlocked"}
-                    {unit.disqualified && " · ❌ Disqualified"}
-                    {" · "}{unit.member_count} member{unit.member_count !== 1 ? "s" : ""}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border font-semibold ${
+                      unit.locked ? "bg-white/5 border-white/10 text-muted" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                    }`}>
+                      Roster: {unit.locked ? "Locked 🔒" : "Open 🔓"}
+                    </span>
+
+                    {unit.proctor_locked ? (
+                      <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded border border-red-500 bg-red-950/80 text-white font-bold shadow-[0_0_12px_rgba(239,68,68,0.5)] animate-pulse flex items-center gap-1">
+                        🚨 PROCTOR LOCKED OUT ({unit.tab_switches}/{unit.tab_switch_limit} STRIKES)
+                      </span>
+                    ) : unit.tab_switches > 0 ? (
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border border-amber-500/50 bg-amber-950/50 text-amber-300 font-semibold flex items-center gap-1">
+                        ⚠️ {unit.tab_switches}/{unit.tab_switch_limit} STRIKES
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border border-[#7DF9FF]/20 bg-[#7DF9FF]/5 text-[#7DF9FF] font-semibold">
+                        🛡️ PROCTOR: OK
+                      </span>
+                    )}
+
+                    {unit.ai_flags_count > 0 && (
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border border-purple-500/50 bg-purple-950/50 text-purple-300 font-semibold">
+                        🤖 {unit.ai_flags_count} AI FLAG{unit.ai_flags_count > 1 ? "S" : ""}
+                      </span>
+                    )}
+
+                    {unit.disqualified && (
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border border-red-500/50 bg-red-950/50 text-red-400 font-semibold">
+                        ❌ Disqualified
+                      </span>
+                    )}
+
+                    <span className="text-[10px] text-muted font-mono uppercase">
+                      · {unit.member_count} member{unit.member_count !== 1 ? "s" : ""}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex gap-2 flex-wrap shrink-0">
-                  {unit.locked && (
+                <div className="flex gap-2 flex-wrap shrink-0 items-center">
+                  {/* PROCTOR UNLOCK: Prominent glowing button whenever team is locked out or has strikes */}
+                  {(unit.proctor_locked || unit.tab_switches > 0) && (
+                    <button
+                      onClick={() => runOverride({ action: "reset_tab_switches", unit_id: unit.id })}
+                      disabled={loading !== null}
+                      className="rounded-lg border border-emerald-500 bg-emerald-500/20 px-3 py-1.5 text-emerald-300 text-[10px] font-mono hover:bg-emerald-500/30 transition-all duration-300 disabled:opacity-50 uppercase font-bold shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center gap-1.5"
+                      title="Clear proctor lockout, reset strikes to 0, and unblock device session"
+                    >
+                      <Unlock className="w-3 h-3" />
+                      {loading === "reset_tab_switches" ? "UNLOCKING..." : "UNLOCK PROCTOR"}
+                    </button>
+                  )}
+
+                  {/* Roster Controls */}
+                  {unit.locked ? (
                     <button
                       onClick={() => runOverride({ action: "unlock_unit", unit_id: unit.id })}
                       disabled={loading !== null}
                       className="rounded-lg border border-signal/30 px-3 py-1.5 text-signal text-[10px] font-mono hover:bg-signal/15 transition-all duration-300 disabled:opacity-50 uppercase font-semibold"
+                      title="Unlock roster to allow team member edits"
                     >
-                      {loading === "unlock_unit" ? "..." : "UNLOCK"}
+                      {loading === "unlock_unit" ? "..." : "UNLOCK ROSTER"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => runOverride({ action: "lock_unit", unit_id: unit.id })}
+                      disabled={loading !== null}
+                      className="rounded-lg border border-white/20 px-3 py-1.5 text-muted hover:text-white text-[10px] font-mono hover:bg-white/5 transition-all duration-300 disabled:opacity-50 uppercase font-semibold"
+                      title="Lock roster to finalize team registration"
+                    >
+                      {loading === "lock_unit" ? "..." : "LOCK ROSTER"}
                     </button>
                   )}
+
                   {!unit.disqualified ? (
                     <button
                       onClick={() => runOverride({ action: "disqualify_unit", unit_id: unit.id, reason: "Disqualified by Super Admin" })}

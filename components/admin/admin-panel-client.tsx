@@ -23,6 +23,10 @@ type UnitInfo = {
   disqualified: boolean;
   leader_name: string;
   member_count: number;
+  proctor_locked: boolean;
+  tab_switches: number;
+  tab_switch_limit: number;
+  ai_flags_count: number;
 };
 
 export default function AdminPanelClient({
@@ -73,7 +77,7 @@ export default function AdminPanelClient({
         </p>
 
         {/* Tabs Control */}
-        <div className="mb-6">
+        <div className="mb-6 relative z-20">
           <AdminTabs
             activeTab={activeTab}
             onTabChange={setActiveTab}

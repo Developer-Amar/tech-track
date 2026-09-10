@@ -13,6 +13,10 @@ type UnitInfo = {
   disqualified: boolean;
   leader_name: string;
   member_count: number;
+  proctor_locked: boolean;
+  tab_switches: number;
+  tab_switch_limit: number;
+  ai_flags_count: number;
 };
 
 export default function SettingsPanel({
@@ -29,7 +33,7 @@ export default function SettingsPanel({
   return (
     <div className="space-y-6 text-left">
       {/* Registration control */}
-      <BentoCard glowColor="danger" className="p-6 md:p-8 bg-black/40 border-white/5 relative overflow-hidden group">
+      <BentoCard glowColor="danger" hoverScale={false} className="p-6 md:p-8 bg-black/40 border-white/5 relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-bl-full pointer-events-none transition-all duration-500 group-hover:bg-red-500/10 group-hover:scale-110" />
         <h4 className="font-display text-2xl md:text-3xl font-bold text-white mb-4 uppercase tracking-wider flex items-center gap-3">
           <Settings className="w-6 h-6 text-[#7DF9FF] animate-spin-slow" /> 

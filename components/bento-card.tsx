@@ -8,9 +8,16 @@ interface BentoCardProps {
   className?: string;
   delay?: number;
   glowColor?: "signal" | "purple" | "danger" | "default";
+  hoverScale?: boolean;
 }
 
-export default function BentoCard({ children, className = "", delay = 0, glowColor = "default" }: BentoCardProps) {
+export default function BentoCard({
+  children,
+  className = "",
+  delay = 0,
+  glowColor = "default",
+  hoverScale = false,
+}: BentoCardProps) {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -26,8 +33,8 @@ export default function BentoCard({ children, className = "", delay = 0, glowCol
 
   const getGlowColor = () => {
     switch (glowColor) {
-      case "signal": return "rgba(125, 249, 255, 0.4)";
-      case "purple": return "rgba(75, 0, 130, 0.6)";
+      case "signal": return "rgba(0, 229, 255, 0.4)";
+      case "purple": return "rgba(168, 85, 247, 0.6)";
       case "danger": return "rgba(239, 68, 68, 0.4)";
       default: return "rgba(255, 255, 255, 0.15)";
     }
@@ -42,7 +49,7 @@ export default function BentoCard({ children, className = "", delay = 0, glowCol
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay, type: "spring", stiffness: 100, damping: 20 }}
-      whileHover={{ scale: 1.02 }}
+      whileHover={hoverScale ? { scale: 1.015 } : undefined}
       className={`relative overflow-hidden rounded-2xl glass-panel ${className}`}
     >
       {/* Glint Effect mapping to mouse */}

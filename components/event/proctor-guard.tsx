@@ -292,6 +292,34 @@ export default function ProctorGuard({
     );
   }
 
+  // ── Auto-poll while lockedOut to guarantee recovery when admin unlocks ────
+  useEffect(() => {
+    if (!lockedOut) return;
+
+    const interval = setInterval(() => {
+      fetch(`/api/event/proctor/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          round,
+          action: "register_device",
+          session_token: sessionTokenRef.current,
+        }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (!data.locked_out) {
+            setLockedOut(false);
+            setTabSwitches(data.tab_switches ?? 0);
+            prevTabSwitchesRef.current = data.tab_switches ?? 0;
+          }
+        })
+        .catch(() => {});
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [lockedOut, round]);
+
   // Render Team Lockout Screen
   if (lockedOut) {
     return (
@@ -309,6 +337,35 @@ export default function ProctorGuard({
         <p className="text-dormant text-xs font-mono uppercase tracking-wider leading-relaxed max-w-md mx-auto border-t border-danger/10 pt-4">
           Your current progress has been auto-submitted. Your team console is locked on all devices. Please contact the organizers or staff to unlock your screen.
         </p>
+        <div className="mt-6 flex items-center justify-center">
+          <button
+            onClick={() => {
+              fetch(`/api/event/proctor/report`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  round,
+                  action: "register_device",
+                  session_token: sessionTokenRef.current,
+                }),
+              })
+                .then((r) => r.json())
+                .then((data) => {
+                  if (!data.locked_out) {
+                    setLockedOut(false);
+                    setTabSwitches(data.tab_switches ?? 0);
+                    prevTabSwitchesRef.current = data.tab_switches ?? 0;
+                  } else {
+                    alert("Console is still locked by the proctor system. Please wait for an administrator to pardon or unlock your team.");
+                  }
+                })
+                .catch(() => alert("Network error checking status. Please try again."));
+            }}
+            className="btn-cyber px-5 py-2.5 rounded-xl text-xs uppercase font-mono tracking-wider font-semibold"
+          >
+            CHECK UNLOCK STATUS
+          </button>
+        </div>
       </div>
     );
   }

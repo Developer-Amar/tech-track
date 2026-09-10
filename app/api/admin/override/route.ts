@@ -6,6 +6,7 @@ type OverrideAction =
   | { action: "reopen_registration" }
   | { action: "toggle_event_live" }
   | { action: "unlock_unit"; unit_id: string }
+  | { action: "lock_unit"; unit_id: string }
   | { action: "delete_unit"; unit_id: string }
   | { action: "disqualify_unit"; unit_id: string; reason: string }
   | { action: "reinstate_unit"; unit_id: string }
@@ -18,18 +19,7 @@ type OverrideAction =
 /**
  * POST /api/admin/override
  *
- * Super Admin override controls — emergency safety features.
- * Only accessible by super_admin role.
- *
- * Actions:
- * - reopen_registration: reopens registration (reverses close)
- * - toggle_event_live: toggles event_live flag
- * - unlock_unit: unlocks a specific unit
- * - delete_unit: deletes a unit and all its members
- * - disqualify_unit: marks a unit as disqualified
- * - reinstate_unit: removes disqualification
- * - remove_member: removes a member from a unit
- * - reset_all_registrations: nuclear option — deletes ALL units/members/codes
+ * Super Admin & Admin override controls — emergency safety features.
  */
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -39,15 +29,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // ── Super Admin only ──────────────────────────────────────────────────
+  // ── Admin & Super Admin access ──────────────────────────────────────────
   const { data: profile } = await supabase
     .from("users")
     .select("role")
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "super_admin") {
-    return NextResponse.json({ error: "Super Admin access required" }, { status: 403 });
+  if (!profile || !["admin", "super_admin"].includes(profile.role)) {
+    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
   let body: OverrideAction;
@@ -55,6 +45,11 @@ export async function POST(request: Request) {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  // Nuclear wipe strictly requires super_admin
+  if (body.action === "reset_all_registrations" && profile.role !== "super_admin") {
+    return NextResponse.json({ error: "Super Admin access required for platform wipe" }, { status: 403 });
   }
 
   const admin = createAdminClient();
@@ -116,11 +111,13 @@ export async function POST(request: Request) {
         .update({ locked: false, locked_at: null })
         .eq("id", body.unit_id);
 
-      // Also reset any proctoring lockouts to ensure they can actually access the page
+      // Also reset any proctoring lockouts and clear active device session
       await admin
         .from("proctoring_state")
         .update({ locked_out: false, tab_switches: 0, flagged_at: null })
         .eq("unit_id", body.unit_id);
+
+      await admin.from("unit_device_sessions").delete().eq("unit_id", body.unit_id);
 
       await admin.from("audit_log").insert({
         actor_id: user.id,
@@ -128,7 +125,27 @@ export async function POST(request: Request) {
         action_detail: { unit_id: body.unit_id },
       });
 
-      return NextResponse.json({ success: true, message: "Unit unlocked." });
+      return NextResponse.json({ success: true, message: "Unit roster unlocked & proctoring cleared." });
+    }
+
+    // ── Lock a unit ───────────────────────────────────────────────────
+    case "lock_unit": {
+      if (!body.unit_id) {
+        return NextResponse.json({ error: "unit_id required" }, { status: 400 });
+      }
+
+      await admin
+        .from("units")
+        .update({ locked: true, locked_at: new Date().toISOString() })
+        .eq("id", body.unit_id);
+
+      await admin.from("audit_log").insert({
+        actor_id: user.id,
+        action_type: "lock_unit",
+        action_detail: { unit_id: body.unit_id },
+      });
+
+      return NextResponse.json({ success: true, message: "Unit roster locked." });
     }
 
     // ── Delete a unit ─────────────────────────────────────────────────
