@@ -152,7 +152,10 @@ export default function ProctorGuard({
 
   // ── Strike Reporting Helper ─────────────────────────────────────────────
   const reportStrike = useCallback(
-    (eventType: "tab_switch" | "focus_loss" | "paste_detected") => {
+    (
+      eventType: "tab_switch" | "focus_loss" | "paste_detected" | "devtools_opened",
+      extra?: { snippet?: string; char_count?: number }
+    ) => {
       if (lockedOut || activeDeviceBlocked) return;
 
       fetch("/api/event/proctor/report", {
@@ -163,6 +166,7 @@ export default function ProctorGuard({
           action: "report_strike",
           event_type: eventType,
           session_token: sessionTokenRef.current,
+          ...extra,
         }),
       })
         .then((r) => r.json())
@@ -174,12 +178,15 @@ export default function ProctorGuard({
             }
             setTabSwitches(data.tab_switches);
           }
-          setLimit(data.tab_switch_limit);
+          if (typeof data.tab_switch_limit === "number") {
+            setLimit(data.tab_switch_limit);
+          }
           if (data.locked_out) {
             setLockedOut(true);
             onLockout();
           }
-        });
+        })
+        .catch((err) => console.error("Proctor report error:", err));
     },
     [round, lockedOut, activeDeviceBlocked, onLockout]
   );
@@ -206,7 +213,7 @@ export default function ProctorGuard({
         if (!document.hasFocus() && !document.hidden) {
           reportStrike("focus_loss");
         }
-      }, 300);
+      }, 400);
     };
 
     window.addEventListener("blur", handleBlur);
@@ -216,28 +223,68 @@ export default function ProctorGuard({
     };
   }, [reportStrike]);
 
-  // ── 3. Realtime Team Proctor Sync (Supabase Realtime) ───────────────────
+  // ── 3. DevTools Detection ───────────────────────────────────────────────
+  useEffect(() => {
+    const checkDevTools = () => {
+      const threshold = 160;
+      const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+      const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+      if (widthThreshold || heightThreshold) {
+        reportStrike("devtools_opened");
+      }
+    };
+
+    const interval = setInterval(checkDevTools, 5000);
+    return () => clearInterval(interval);
+  }, [reportStrike]);
+
+  // ── 4. Realtime Team Proctor & Device Sync (Supabase Realtime) ─────────
   useEffect(() => {
     if (!unitId) return;
 
     const channel = supabase
       .channel(`proctoring_${unitId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "proctoring_state", filter: `unit_id=eq.${unitId}` }, (payload) => {
-        const updated = payload.new as any;
-        if (updated) {
-          const newSwitches = updated.tab_switches ?? 0;
-          if (newSwitches > prevTabSwitchesRef.current) {
-            playStrikeAlertSound(newSwitches);
-            prevTabSwitchesRef.current = newSwitches;
-          }
-          setTabSwitches(newSwitches);
-          setLimit(updated.tab_switch_limit ?? 3);
-          setLockedOut(updated.locked_out ?? false);
-          if (updated.locked_out) {
-            onLockout();
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "proctoring_state",
+          filter: `unit_id=eq.${unitId}`,
+        },
+        (payload) => {
+          const updated = payload.new as any;
+          if (updated) {
+            const newSwitches = updated.tab_switches ?? 0;
+            if (newSwitches > prevTabSwitchesRef.current) {
+              playStrikeAlertSound(newSwitches);
+              prevTabSwitchesRef.current = newSwitches;
+            }
+            setTabSwitches(newSwitches);
+            setLimit(updated.tab_switch_limit ?? 3);
+            setLockedOut(updated.locked_out ?? false);
+            if (updated.locked_out) {
+              onLockout();
+            }
           }
         }
-      })
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "unit_device_sessions",
+          filter: `unit_id=eq.${unitId}`,
+        },
+        (payload) => {
+          const session = payload.new as any;
+          if (session && session.session_token !== sessionTokenRef.current) {
+            setActiveDeviceBlocked(true);
+            setActiveUserName(session.user_name ?? "Another team member");
+          }
+        }
+      )
       .subscribe();
 
     return () => {
@@ -245,13 +292,19 @@ export default function ProctorGuard({
     };
   }, [unitId, onLockout, supabase]);
 
-  // ── 4. Clipboard & Context Menu Restrictions ────────────────────────────
+  // ── 5. Clipboard & Context Menu Restrictions with AI Telemetry ─────────
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest("[data-proctor-zone]")) {
-        // Report paste event telemetry
-        reportStrike("paste_detected");
+        const text = e.clipboardData?.getData("text") || "";
+        // Only strike and report large external paste dumps (over 40 characters)
+        if (text.length > 40) {
+          reportStrike("paste_detected", {
+            snippet: text.slice(0, 250),
+            char_count: text.length,
+          });
+        }
       }
     };
 
@@ -270,29 +323,7 @@ export default function ProctorGuard({
     };
   }, [reportStrike]);
 
-  if (!loaded) return null;
-
-  // Render Single Device Lock Screen
-  if (activeDeviceBlocked) {
-    return (
-      <div className="glass-panel border border-amber-500/40 p-8 text-center relative overflow-hidden select-none">
-        <div className="inline-flex h-16 w-16 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/35 mb-4 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-          <span className="font-mono text-2xl font-bold text-amber-500">💻</span>
-        </div>
-        <h3 className="font-display text-2xl font-extrabold text-white uppercase mb-2">
-          SINGLE ACTIVE DEVICE LOCK
-        </h3>
-        <p className="text-amber-400 font-mono text-xs uppercase tracking-widest mb-4 font-semibold">
-          [SECURITY RESTRICTION]: Concurrent team logins are prohibited.
-        </p>
-        <p className="text-dormant text-xs font-mono uppercase tracking-wider leading-relaxed max-w-md mx-auto border-t border-amber-500/10 pt-4">
-          Your team member <strong className="text-text">{activeUserName}</strong> is currently active in the coding workspace on another device. Only one device per team is allowed inside the IDE at a time.
-        </p>
-      </div>
-    );
-  }
-
-  // ── Auto-poll while lockedOut to guarantee recovery when admin unlocks ────
+  // ── 6. Auto-poll while lockedOut to guarantee recovery when admin unlocks ────
   useEffect(() => {
     if (!lockedOut) return;
 
@@ -319,6 +350,28 @@ export default function ProctorGuard({
 
     return () => clearInterval(interval);
   }, [lockedOut, round]);
+
+  if (!loaded) return null;
+
+  // Render Single Device Lock Screen
+  if (activeDeviceBlocked) {
+    return (
+      <div className="glass-panel border border-amber-500/40 p-8 text-center relative overflow-hidden select-none">
+        <div className="inline-flex h-16 w-16 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/35 mb-4 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+          <span className="font-mono text-2xl font-bold text-amber-500">💻</span>
+        </div>
+        <h3 className="font-display text-2xl font-extrabold text-white uppercase mb-2">
+          SINGLE ACTIVE DEVICE LOCK
+        </h3>
+        <p className="text-amber-400 font-mono text-xs uppercase tracking-widest mb-4 font-semibold">
+          [SECURITY RESTRICTION]: Concurrent team logins are prohibited.
+        </p>
+        <p className="text-dormant text-xs font-mono uppercase tracking-wider leading-relaxed max-w-md mx-auto border-t border-amber-500/10 pt-4">
+          Your team member <strong className="text-text">{activeUserName}</strong> is currently active in the coding workspace on another device. Only one device per team is allowed inside the IDE at a time.
+        </p>
+      </div>
+    );
+  }
 
   // Render Team Lockout Screen
   if (lockedOut) {
@@ -375,9 +428,9 @@ export default function ProctorGuard({
   // Dynamic visual escalation for IDE coding area
   const escalationClasses =
     tabSwitches === 1
-      ? "p-3 sm:p-4 rounded-2xl bg-amber-950/20 border-2 border-amber-500/50 shadow-[0_0_35px_rgba(245,158,11,0.25),inset_0_0_30px_rgba(245,158,11,0.1)] transition-all duration-500"
+      ? "p-3 sm:p-4 rounded-2xl bg-amber-950/20 border-2 border-amber-500/50 shadow-[0_0_35px_rgba(245,158,11,0.25),inset_0_0_25px_rgba(245,158,11,0.1)] transition-all duration-500"
       : tabSwitches >= 2
-      ? "p-3 sm:p-4 rounded-2xl bg-red-950/30 border-2 border-red-500/70 shadow-[0_0_55px_rgba(239,68,68,0.4),inset_0_0_40px_rgba(239,68,68,0.2)] animate-pulse transition-all duration-500"
+      ? "p-3 sm:p-4 rounded-2xl bg-red-950/30 border-2 border-red-500/70 shadow-[0_0_55px_rgba(239,68,68,0.4),inset_0_0_35px_rgba(239,68,68,0.2)] animate-pulse transition-all duration-500"
       : "p-1 rounded-2xl border border-transparent transition-all duration-500";
 
   return (

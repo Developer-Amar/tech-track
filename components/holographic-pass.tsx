@@ -109,7 +109,7 @@ export default function HolographicPass({
     : isError
     ? "#EF4444"
     : isSubmitting
-    ? "#7DF9FF"
+    ? "#00E5FF"
     : filledCount === 4
     ? "#22C55E"
     : filledCount > 0
@@ -205,7 +205,7 @@ export default function HolographicPass({
           50% { opacity: 0.6; box-shadow: 0 0 8px currentColor; }
         }
         .avatar-ring {
-          background: conic-gradient(from 0deg, #7DF9FF, #A78BFA, #FF1E56, #7DF9FF);
+          background: conic-gradient(from 0deg, #00E5FF, #A78BFA, #FF1E56, #00E5FF);
           padding: 2px;
           border-radius: 50%;
           display: inline-flex;
@@ -265,7 +265,7 @@ export default function HolographicPass({
               style={{
                 width: "6px",
                 height: "6px",
-                background: "#7DF9FF",
+                background: "#00E5FF",
                 clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
                 flexShrink: 0,
               }}
@@ -276,7 +276,7 @@ export default function HolographicPass({
                 fontSize: "16px",
                 fontWeight: 800,
                 letterSpacing: "0.12em",
-                color: "#7DF9FF",
+                color: "#00E5FF",
                 textTransform: "uppercase",
               }}
             >
@@ -346,7 +346,7 @@ export default function HolographicPass({
                       fontFamily: "var(--font-display), monospace",
                       fontSize: "18px",
                       fontWeight: 800,
-                      color: "#7DF9FF",
+                      color: "#00E5FF",
                     }}
                   >
                     {initials}
@@ -499,7 +499,7 @@ export default function HolographicPass({
                     fontSize: "11px",
                     fontWeight: 700,
                     letterSpacing: "0.3em",
-                    color: isReady ? "#7DF9FF" : "rgba(148,163,184,0.3)",
+                    color: isReady ? "#00E5FF" : "rgba(148,163,184,0.3)",
                     textTransform: "uppercase",
                     transition: "color 0.4s ease",
                   }}
@@ -611,7 +611,7 @@ function DataCell({ label, value, ready }: { label: string; value: string; ready
 
 const ROLE_COLORS: Record<string, { text: string; bg: string; border: string }> = {
   super_admin: { text: "#FCD34D", bg: "rgba(252,211,77,0.12)", border: "rgba(252,211,77,0.25)" },
-  admin: { text: "#7DF9FF", bg: "rgba(125,249,255,0.12)", border: "rgba(125,249,255,0.25)" },
+  admin: { text: "#00E5FF", bg: "rgba(125,249,255,0.12)", border: "rgba(125,249,255,0.25)" },
   checkpoint_staff: { text: "#6EE7B7", bg: "rgba(110,231,183,0.12)", border: "rgba(110,231,183,0.25)" },
   participant: { text: "#94A3B8", bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.18)" },
 };

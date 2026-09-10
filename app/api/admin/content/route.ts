@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     const { data: cp, error: cpError } = await admin
       .from("checkpoints")
       .insert({
-        location_name: `Checkpoint Round ${nextRound}`,
+        location_name: `Question ${nextRound}`,
         round_number: nextRound,
       })
       .select()
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       .from("riddles")
       .insert({
         checkpoint_id: cp.id,
-        content: `Solve this riddle to find the location for Round ${nextRound}.`,
+        content: `Solve this riddle to find the location for Question ${nextRound}.`,
       });
 
     if (riddleError) {
@@ -119,14 +119,14 @@ export async function POST(request: Request) {
       action_detail: { new_round: nextRound },
     });
 
-    return NextResponse.json({ success: true, message: `Round ${nextRound} successfully added.` });
+    return NextResponse.json({ success: true, message: `Question ${nextRound} successfully added.` });
   }
 
-  // ── Action: Remove Last Round ────────────────────────────────────────
+  // ── Action: Remove Last Round (now Question) ──────────────────────────────
   if (action === "remove_last_round") {
     const currentRound = settings.total_rounds;
     if (currentRound <= 1) {
-      return NextResponse.json({ error: "Cannot remove the final remaining round." }, { status: 400 });
+      return NextResponse.json({ error: "Cannot remove the final remaining question." }, { status: 400 });
     }
 
     // Find the checkpoint to delete
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
       .single();
 
     if (cpFetchError || !cp) {
-      return NextResponse.json({ error: "Last round checkpoint not found" }, { status: 404 });
+      return NextResponse.json({ error: "Last question not found" }, { status: 404 });
     }
 
     // Delete test cases and coding questions
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
       action_detail: { removed_round: currentRound },
     });
 
-    return NextResponse.json({ success: true, message: `Round ${currentRound} successfully removed.` });
+    return NextResponse.json({ success: true, message: `Question ${currentRound} successfully removed.` });
   }
 
   // ── Standard Entity Validation for updates ────────────────────────────

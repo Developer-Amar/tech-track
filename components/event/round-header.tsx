@@ -23,19 +23,19 @@ export default function RoundHeader({
 
   return (
     <BentoCard glowColor="purple" className="p-6 md:p-8 relative overflow-hidden group">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-[#7DF9FF]/5 rounded-bl-full pointer-events-none transition-all duration-300 group-hover:bg-[#7DF9FF]/10 group-hover:scale-110" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-[#00E5FF]/5 rounded-bl-full pointer-events-none transition-all duration-300 group-hover:bg-[#00E5FF]/10 group-hover:scale-110" />
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#7DF9FF] font-semibold mb-2">ACTIVE HUNT LEVEL</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold mb-2">ACTIVE HUNT LEVEL</p>
           <h2 className="font-display text-4xl md:text-5xl font-extrabold text-white uppercase flex items-baseline gap-2">
             <KineticText delay={0.1}>{`ROUND ${round}`}</KineticText>
             <span className="text-muted font-mono text-sm uppercase tracking-normal">/ {totalRounds}</span>
           </h2>
         </div>
-        <div className="flex items-center gap-3 font-mono text-[10px] text-muted uppercase tracking-[0.2em] bg-black/40 border border-[#7DF9FF]/20 px-4 py-2 rounded-lg select-none backdrop-blur-sm">
-          <span className="h-2 w-2 rounded-full bg-[#7DF9FF] animate-ping relative">
-             <span className="absolute inset-0 rounded-full bg-[#7DF9FF]" />
+        <div className="flex items-center gap-3 font-mono text-[10px] text-muted uppercase tracking-[0.2em] bg-black/40 border border-[#00E5FF]/20 px-4 py-2 rounded-lg select-none backdrop-blur-sm">
+          <span className="h-2 w-2 rounded-full bg-[#00E5FF] animate-ping relative">
+             <span className="absolute inset-0 rounded-full bg-[#00E5FF]" />
           </span>
           <span>STAGE: R_{String(round).padStart(2, '0')}</span>
         </div>
@@ -49,9 +49,9 @@ export default function RoundHeader({
               <div
                 className={`flex-1 flex items-center justify-between rounded-xl border px-4 py-3.5 text-xs font-mono transition-all duration-300 ${
                   i < currentIdx
-                    ? "bg-[#7DF9FF]/5 border-[#7DF9FF]/30 text-[#7DF9FF]/70"
+                    ? "bg-[#00E5FF]/5 border-[#00E5FF]/30 text-[#00E5FF]/70"
                     : i === currentIdx
-                    ? "bg-[#7DF9FF]/15 border-[#7DF9FF] text-[#7DF9FF] shadow-[0_0_20px_rgba(125,249,255,0.15)] scale-[1.02]"
+                    ? "bg-[#00E5FF]/15 border-[#00E5FF] text-[#00E5FF] shadow-[0_0_20px_rgba(125,249,255,0.15)] scale-[1.02]"
                     : "bg-black/40 border-white/10 text-muted"
                 }`}
               >

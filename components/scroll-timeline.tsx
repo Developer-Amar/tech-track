@@ -22,7 +22,7 @@ const TIMELINE_NODES = [
     subtitle: "REGISTRATION PHASE",
     description:
       "Assemble a team of 2–4 elite coders. Lock in your roster before the gates close. Your squad is your lifeline.",
-    glowColor: "#4B0082",
+    glowColor: "#A855F7",
     icon: Shield,
   },
   {
@@ -31,7 +31,7 @@ const TIMELINE_NODES = [
     subtitle: "RIDDLE PHASE",
     description:
       "Each round begins with a cryptic riddle. Crack the logic, decode the clue, and reveal the coordinates of your next destination.",
-    glowColor: "#7DF9FF",
+    glowColor: "#00E5FF",
     icon: Compass,
   },
   {
@@ -40,7 +40,7 @@ const TIMELINE_NODES = [
     subtitle: "CHECKPOINT PHASE",
     description:
       "Navigate to the physical location on campus. Find the outpost. Get verified by staff with a secure access code to prove you were there.",
-    glowColor: "#7DF9FF",
+    glowColor: "#00E5FF",
     icon: MapPin,
   },
   {
@@ -58,7 +58,7 @@ const TIMELINE_NODES = [
     subtitle: "FINAL PROGRESSION",
     description:
       "Complete all rounds to reach the summit. The leaderboard updates in real-time. Every second counts. Only the fastest and smartest survive.",
-    glowColor: "#7DF9FF",
+    glowColor: "#00E5FF",
     icon: Trophy,
   },
 ];
@@ -215,13 +215,13 @@ function TimelineScene({
       <pointLight
         position={[15, 10, 10]}
         intensity={0.6}
-        color="#7DF9FF"
+        color="#00E5FF"
         distance={80}
       />
       <pointLight
         position={[-15, -8, -20]}
         intensity={0.4}
-        color="#4B0082"
+        color="#A855F7"
         distance={80}
       />
 
@@ -375,9 +375,9 @@ function ScrollProgress({ progress }: { progress: number }) {
               style={{
                 width: isActive ? "28px" : "8px",
                 height: "8px",
-                backgroundColor: isActive ? "#7DF9FF" : "rgba(255,255,255,0.15)",
+                backgroundColor: isActive ? "#00E5FF" : "rgba(255,255,255,0.15)",
                 boxShadow: isActive
-                  ? "0 0 12px #7DF9FF, 0 0 25px rgba(125,249,255,0.3)"
+                  ? "0 0 12px #00E5FF, 0 0 25px rgba(125,249,255,0.3)"
                   : "none",
               }}
             />

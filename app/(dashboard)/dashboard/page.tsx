@@ -9,6 +9,8 @@ import LockedStatus from "@/components/locked-status";
 import BentoCard from "@/components/bento-card";
 import KineticText from "@/components/kinetic-text";
 import DownloadablePass from "@/components/downloadable-pass";
+import JoinRequestsPanel from "@/components/join-requests-panel";
+import LeaderTeamControls from "@/components/leader-team-controls";
 import AnnouncementsModal from "@/components/announcements-modal";
 import { User, Activity, AlertCircle } from "lucide-react";
 
@@ -38,7 +40,7 @@ export default async function DashboardPage() {
 
   const adminSupabase = createAdminClient();
 
-  // ── Fetch registration state & settings via adminSupabase (bypasses RLS delays) ──
+  // ── Fetch registration state ──────────────────────────────────────────
   const { data: settings } = await adminSupabase
     .from("event_settings")
     .select("registration_open, event_live")
@@ -155,7 +157,7 @@ export default async function DashboardPage() {
   const isLeader = unitData?.leader_id === user.id;
 
   return (
-    <main className="min-h-screen px-4 py-12 relative z-10 selection:bg-[#7DF9FF] selection:text-black">
+    <main className="min-h-screen px-4 py-12 relative z-10 selection:bg-[#00E5FF] selection:text-black">
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-4 select-none border-b border-white/5">
@@ -164,7 +166,7 @@ export default async function DashboardPage() {
               <Image src="/assets/chitkara-university-logo.png" alt="Chitkara University" width={150} height={40} className="object-contain h-10 w-auto" />
             </div>
             <div>
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#7DF9FF] font-semibold flex items-center gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold flex items-center gap-2">
                 <Activity className="w-4 h-4" /> PARTICIPANT COMMAND
               </span>
               <h1 className="font-display text-4xl font-extrabold text-white tracking-tight uppercase mt-1">
@@ -189,7 +191,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           {/* User profile card */}
           <BentoCard className="md:col-span-12 p-6 md:p-8 flex items-center gap-6" delay={0.2} glowColor="purple">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/40 border border-[#7DF9FF]/30 shadow-[0_0_20px_rgba(125,249,255,0.15)] relative overflow-hidden group shrink-0">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/40 border border-[#00E5FF]/30 shadow-[0_0_20px_rgba(125,249,255,0.15)] relative overflow-hidden group shrink-0">
               {profile.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -199,8 +201,8 @@ export default async function DashboardPage() {
                 />
               ) : (
                 <>
-                  <div className="absolute inset-0 bg-[#7DF9FF]/10 group-hover:bg-[#7DF9FF]/20 transition-colors duration-300" />
-                  <User className="w-8 h-8 text-[#7DF9FF] relative z-10" />
+                  <div className="absolute inset-0 bg-[#00E5FF]/10 group-hover:bg-[#00E5FF]/20 transition-colors duration-300" />
+                  <User className="w-8 h-8 text-[#00E5FF] relative z-10" />
                 </>
               )}
             </div>
@@ -228,17 +230,23 @@ export default async function DashboardPage() {
                 />
               </BentoCard>
             ) : isLeader ? (
-              <BentoCard delay={0.3} glowColor="purple" className="p-1">
-                <TeamRoster
-                  unitId={unitData.id}
-                  teamName={unitData.name ?? "Your Team"}
-                  initialMembers={unitData.members}
-                />
-              </BentoCard>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <BentoCard delay={0.3} glowColor="purple" className="p-1">
+                  <TeamRoster
+                    unitId={unitData.id}
+                    teamName={unitData.name ?? "Your Team"}
+                    initialMembers={unitData.members}
+                  />
+                </BentoCard>
+                <div className="space-y-6">
+                  <LeaderTeamControls unitId={unitData.id} members={unitData.members} />
+                  <JoinRequestsPanel unitId={unitData.id} />
+                </div>
+              </div>
             ) : (
               <BentoCard delay={0.3} glowColor="default" className="p-8 text-center flex flex-col items-center">
-                <AlertCircle className="w-12 h-12 text-[#7DF9FF] mb-4 opacity-80" />
-                <p className="font-mono text-[10px] uppercase text-[#7DF9FF] tracking-[0.2em] mb-2 font-semibold">TEAM SECURED</p>
+                <AlertCircle className="w-12 h-12 text-[#00E5FF] mb-4 opacity-80" />
+                <p className="font-mono text-[10px] uppercase text-[#00E5FF] tracking-[0.2em] mb-2 font-semibold">TEAM SECURED</p>
                 <h3 className="font-display text-3xl font-bold text-white uppercase mb-3">
                   {unitData.name ?? "Your Team"}
                 </h3>
@@ -254,12 +262,12 @@ export default async function DashboardPage() {
               (unitData?.locked || ["admin", "super_admin", "checkpoint_staff"].includes(profile.role))
             ) ? (
               <a href="/event" className="block">
-                <BentoCard delay={0.5} glowColor="signal" className="p-8 border border-[#7DF9FF]/40 bg-[#7DF9FF]/5 group cursor-pointer">
+                <BentoCard delay={0.5} glowColor="signal" className="p-8 border border-[#00E5FF]/40 bg-[#00E5FF]/5 group cursor-pointer">
                   <div className="absolute top-6 right-6 flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full bg-[#7DF9FF] animate-ping" />
-                    <span className="h-3 w-3 rounded-full bg-[#7DF9FF]" />
+                    <span className="h-3 w-3 rounded-full bg-[#00E5FF] animate-ping" />
+                    <span className="h-3 w-3 rounded-full bg-[#00E5FF]" />
                   </div>
-                  <h3 className="font-display text-4xl font-bold text-[#7DF9FF] uppercase tracking-wider mb-3">
+                  <h3 className="font-display text-4xl font-bold text-[#00E5FF] uppercase tracking-wider mb-3">
                     THE HUNT IS LIVE
                   </h3>
                   <p className="text-muted font-body text-base leading-relaxed group-hover:text-white transition-colors duration-300">
@@ -292,7 +300,7 @@ export default async function DashboardPage() {
             ) && (
               <BentoCard delay={0.45} glowColor="purple" className="p-2">
                 <div className="text-center mb-2 pt-4">
-                  <span className="font-mono text-[9px] uppercase tracking-widest text-[#7DF9FF] font-semibold">YOUR EVENT PASS</span>
+                  <span className="font-mono text-[9px] uppercase tracking-widest text-[#00E5FF] font-semibold">YOUR EVENT PASS</span>
                   <h3 className="font-display text-xl font-bold text-white uppercase mt-1">DOWNLOAD & SAVE</h3>
                 </div>
                 <DownloadablePass

@@ -11,6 +11,17 @@ import { NextResponse, type NextRequest } from "next/server";
  * - /, /auth/*, /api/*     → public, no gate
  */
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // ── Fast-path: Public routes require no session gate ──────────────────
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/api/")
+  ) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -34,19 +45,8 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh the session — main purpose of this middleware
+  // Refresh the session for protected & auth routes
   const { data: { user } } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-
-  // ── Public routes — no gate ───────────────────────────────────────────
-  if (
-    pathname === "/" ||
-    pathname.startsWith("/auth/") ||
-    pathname.startsWith("/api/")
-  ) {
-    return supabaseResponse;
-  }
 
   // ── Protected routes — require authentication ─────────────────────────
   const protectedPaths = ["/dashboard", "/event", "/admin"];

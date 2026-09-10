@@ -90,25 +90,47 @@ export async function POST(request: Request) {
   // ── Update round_progress — mark checkpoint reached ───────────────────
   const { data: progress } = await admin
     .from("round_progress")
-    .select("id")
+    .select("id, status, points")
     .eq("unit_id", membership.unit_id)
     .eq("checkpoint_id", checkpoint.id)
     .maybeSingle();
 
+  // If already at or past checkpoint_done, don't overwrite
   if (progress) {
-    // Mark checkpoint as verified: status → checkpoint_done, points = 20 (riddle + checkpoint)
-    await admin
-      .from("round_progress")
-      .update({ status: "checkpoint_done", points: 20 })
-      .eq("id", progress.id);
-  } else {
-    // Shouldn't happen (riddle must be solved first), but create row anyway
-    await admin.from("round_progress").insert({
-      unit_id: membership.unit_id,
-      checkpoint_id: checkpoint.id,
-      status: "checkpoint_done",
-      points: 20,
-    });
+    if (progress.status === "passed" || progress.status === "skipped") {
+      return NextResponse.json({
+        correct: true,
+        message: "Round already completed!",
+      });
+    }
+    if (progress.status === "checkpoint_done") {
+      return NextResponse.json({
+        correct: true,
+        message: "Checkpoint already verified! Proceed to the coding challenge.",
+      });
+    }
+  }
+
+  // Must have solved the riddle first
+  if (!progress || progress.status !== "riddle_done") {
+    return NextResponse.json(
+      { error: "You must solve the riddle first before verifying the checkpoint." },
+      { status: 400 }
+    );
+  }
+
+  // Mark checkpoint as verified: status → checkpoint_done, points = 20 (riddle + checkpoint)
+  const { error: updateError } = await admin
+    .from("round_progress")
+    .update({ status: "checkpoint_done", points: 20 })
+    .eq("id", progress.id);
+
+  if (updateError) {
+    console.error("Failed to update checkpoint progress:", updateError.message);
+    return NextResponse.json(
+      { error: "Failed to update progress in database: " + updateError.message },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ correct: true, message: "Code verified! Proceed to the coding challenge." });

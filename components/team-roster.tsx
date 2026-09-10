@@ -88,11 +88,30 @@ export default function TeamRoster({
               </p>
               <p className="text-dormant font-mono text-xs">{member.email}</p>
             </div>
-            <span
-              className={`rounded px-3 py-1 text-[9px] font-mono uppercase tracking-wider ${statusStyles[member.status] ?? ""}`}
-            >
-              {member.status}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={`rounded px-3 py-1 text-[9px] font-mono uppercase tracking-wider ${statusStyles[member.status] ?? ""}`}
+              >
+                {member.status}
+              </span>
+              {!member.is_leader && (
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Remove ${member.name} from the team?`)) return;
+                    await fetch('/api/units/manage', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'remove_member', user_id: member.user_id }),
+                    });
+                    setMembers(prev => prev.filter(m => m.user_id !== member.user_id));
+                  }}
+                  className="ml-1 text-dormant hover:text-danger transition-colors p-1"
+                  title="Remove Member"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="23" y2="12"></line><line x1="23" y1="8" x2="19" y2="12"></line></svg>
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>

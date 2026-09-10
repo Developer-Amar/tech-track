@@ -132,18 +132,18 @@ export default function ContentEditor() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={removeLastRound}
-              disabled={saving || data.checkpoints.length <= 1}
-              className="rounded-lg border border-danger/40 hover:bg-danger/10 text-danger px-4 py-2 text-xs font-mono uppercase tracking-widest font-semibold transition-all disabled:opacity-30"
-            >
-              - Remove Round
-            </button>
-            <button
               onClick={addRound}
               disabled={saving}
-              className="rounded-lg bg-signal text-void hover:brightness-110 px-4 py-2 text-xs font-mono uppercase tracking-widest font-bold transition-all disabled:opacity-30"
+              className="px-4 py-2 bg-signal/10 hover:bg-signal/20 text-signal border border-signal/30 rounded font-mono text-xs uppercase tracking-widest font-semibold transition-all disabled:opacity-50"
             >
-              + Add Round
+              + ADD ROUND
+            </button>
+            <button
+              onClick={removeLastRound}
+              disabled={saving || data.checkpoints.length <= 1}
+              className="px-4 py-2 bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30 rounded font-mono text-xs uppercase tracking-widest font-semibold transition-all disabled:opacity-50"
+            >
+              - REMOVE ROUND
             </button>
           </div>
         </div>
@@ -158,7 +158,7 @@ export default function ContentEditor() {
           <div key={cp.id} className="rounded-2xl border border-dormant/15 bg-void/40 p-5 relative overflow-hidden transition-all duration-300 hover:border-signal/25">
             <div className="absolute top-0 right-0 w-12 h-12 bg-signal/5 rounded-bl-full pointer-events-none" />
             <h4 className="font-display text-2xl font-bold text-signal mb-4 uppercase tracking-wide">
-              ROUND 0{cp.round_number} SETTINGS
+              ROUND {cp.round_number < 10 ? `0${cp.round_number}` : cp.round_number} SETTINGS
             </h4>
 
             {/* Location name */}

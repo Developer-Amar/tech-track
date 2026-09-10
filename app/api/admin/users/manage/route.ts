@@ -307,6 +307,9 @@ async function cleanupAndDeleteUser(
     await admin.from("notifications").delete().in("unit_id", unitIds);
     await admin.from("submissions").delete().in("unit_id", unitIds);
     await admin.from("round_progress").delete().in("unit_id", unitIds);
+    await admin.from("round_2_submissions").delete().in("unit_id", unitIds);
+    await admin.from("round_2_progress").delete().in("unit_id", unitIds);
+    await admin.from("round_qualifiers").delete().in("unit_id", unitIds);
     // unit_members + unit_checkpoint_codes cascade from units(id)
     await admin.from("units").delete().in("id", unitIds);
   }

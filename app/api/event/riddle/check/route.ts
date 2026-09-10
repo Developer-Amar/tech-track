@@ -64,6 +64,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid round." }, { status: 400 });
   }
 
+  // ── Sequence Guard: Previous rounds must be passed or skipped ───────
+  if (round > 1) {
+    const { data: prevCheckpoints } = await admin
+      .from("checkpoints")
+      .select("id")
+      .lt("round_number", round);
+    if (prevCheckpoints && prevCheckpoints.length > 0) {
+      const prevIds = prevCheckpoints.map((cp) => cp.id);
+      const { count } = await admin
+        .from("round_progress")
+        .select("id", { count: "exact", head: true })
+        .eq("unit_id", membership.unit_id)
+        .in("checkpoint_id", prevIds)
+        .in("status", ["passed", "skipped"]);
+      if ((count ?? 0) < prevIds.length) {
+        return NextResponse.json(
+          { error: "You must complete previous rounds first." },
+          { status: 400 }
+        );
+      }
+    }
+  }
+
   // ── Check answer (location_name, case-insensitive, trimmed) ───────────
   const correct =
     answer.trim().toLowerCase() === checkpoint.location_name.trim().toLowerCase();
@@ -73,21 +96,44 @@ export async function POST(request: Request) {
   }
 
   // ── Create/update round_progress ──────────────────────────────────────
-  // Check if a progress row already exists
   const { data: existing } = await admin
     .from("round_progress")
-    .select("id")
+    .select("id, status")
     .eq("unit_id", membership.unit_id)
     .eq("checkpoint_id", checkpoint.id)
     .maybeSingle();
 
-  if (!existing) {
-    await admin.from("round_progress").insert({
+  // If already at or past riddle_done, don't overwrite
+  if (
+    existing &&
+    (existing.status === "passed" ||
+      existing.status === "skipped" ||
+      existing.status === "checkpoint_done" ||
+      existing.status === "riddle_done")
+  ) {
+    return NextResponse.json({
+      correct: true,
+      location_name: checkpoint.location_name,
+      message: `Already solved! Head to: ${checkpoint.location_name}`,
+    });
+  }
+
+  const { error: upsertError } = await admin.from("round_progress").upsert(
+    {
       unit_id: membership.unit_id,
       checkpoint_id: checkpoint.id,
       status: "riddle_done",
       points: 10,
-    });
+    },
+    { onConflict: "unit_id,checkpoint_id" }
+  );
+
+  if (upsertError) {
+    console.error("Failed to save riddle progress:", upsertError.message);
+    return NextResponse.json(
+      { error: "Failed to update round progress in database: " + upsertError.message },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({

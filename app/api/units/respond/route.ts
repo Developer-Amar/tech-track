@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // ── If accepting, check user isn't already in another unit ────────────
+  // ── If accepting, check user isn't already in another unit & team isn't full ────
   if (inviteResponse === "accepted") {
     const { data: existingMembership } = await adminSupabase
       .from("unit_members")
@@ -69,6 +69,19 @@ export async function POST(request: Request) {
     if (existingMembership) {
       return NextResponse.json(
         { error: "You're already part of a team." },
+        { status: 400 }
+      );
+    }
+
+    const { count: memberCount } = await adminSupabase
+      .from("unit_members")
+      .select("id", { count: "exact", head: true })
+      .eq("unit_id", unit_id)
+      .eq("status", "accepted");
+
+    if ((memberCount ?? 0) >= 4) {
+      return NextResponse.json(
+        { error: "This team has already reached the maximum of 4 members." },
         { status: 400 }
       );
     }

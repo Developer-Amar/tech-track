@@ -11,8 +11,10 @@ export default function AdminTabs({
 }) {
   const tabs = [
     { key: "dashboard", label: "Dashboard" },
+    { key: "leaderboard", label: "Live Leaderboard" },
     { key: "users", label: "Users" },
     { key: "units", label: "Teams" },
+    { key: "rounds", label: "Rounds", superOnly: true },
     { key: "content", label: "Content", superOnly: true },
     { key: "codes", label: "Codes" },
     { key: "submissions", label: "Submissions" },
@@ -30,8 +32,8 @@ export default function AdminTabs({
           onClick={() => onTabChange(tab.key)}
           className={`whitespace-nowrap px-4 py-2 text-xs font-mono uppercase tracking-wider transition-all duration-300 rounded border ${
             activeTab === tab.key
-              ? "bg-signal/15 border-signal text-signal shadow-[0_0_12px_rgba(255,30,86,0.15)]"
-              : "bg-void/40 border-dormant/15 text-dormant hover:border-dormant/30 hover:text-text"
+              ? "bg-signal/15 border-signal text-signal shadow-[0_0_12px_rgba(0,229,255,0.15)]"
+              : "bg-void/50 border-white/[0.08] text-dormant hover:border-white/[0.15] hover:text-text"
           }`}
         >
           {tab.label}
@@ -40,3 +42,4 @@ export default function AdminTabs({
     </div>
   );
 }
+

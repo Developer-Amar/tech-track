@@ -54,7 +54,7 @@ export default function StatsDashboard() {
 
   if (loading) return (
     <div className="flex items-center justify-center p-12">
-      <p className="text-[#7DF9FF] text-sm font-mono animate-pulse uppercase tracking-widest flex items-center gap-2">
+      <p className="text-[#00E5FF] text-sm font-mono animate-pulse uppercase tracking-widest flex items-center gap-2">
         <Activity className="w-4 h-4 animate-spin" /> [ESTABLISHING UPLINK TO TELEMETRY DATA...]
       </p>
     </div>
@@ -77,7 +77,7 @@ export default function StatsDashboard() {
         <div className="flex flex-wrap items-center gap-3">
           <div className={`rounded-lg border px-3 py-1.5 text-[10px] font-mono tracking-widest font-semibold flex items-center gap-1.5 ${
             stats.settings?.registration_open
-              ? "bg-[#7DF9FF]/5 border-[#7DF9FF]/30 text-[#7DF9FF] shadow-[0_0_10px_rgba(125,249,255,0.1)]"
+              ? "bg-[#00E5FF]/5 border-[#00E5FF]/30 text-[#00E5FF] shadow-[0_0_10px_rgba(125,249,255,0.1)]"
               : "bg-red-500/5 border-red-500/30 text-red-500"
           }`}>
             {stats.settings?.registration_open ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
@@ -99,7 +99,7 @@ export default function StatsDashboard() {
         <button
           onClick={fetchHealth}
           disabled={pinging}
-          className="rounded-lg border border-[#7DF9FF]/30 bg-[#7DF9FF]/10 hover:bg-[#7DF9FF]/20 px-3 py-1.5 text-[10px] font-mono text-[#7DF9FF] tracking-widest font-semibold flex items-center gap-1.5 transition-all"
+          className="rounded-lg border border-[#00E5FF]/30 bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 px-3 py-1.5 text-[10px] font-mono text-[#00E5FF] tracking-widest font-semibold flex items-center gap-1.5 transition-all"
         >
           <RefreshCw className={`w-3 h-3 ${pinging ? "animate-spin" : ""}`} />
           {pinging ? "PINGING DB..." : "PING SYSTEM HEARTBEAT"}
@@ -107,15 +107,15 @@ export default function StatsDashboard() {
       </div>
 
       {/* System Infrastructure Telemetry Card */}
-      <BentoCard glowColor="purple" className="p-6 bg-black/50 border-[#7DF9FF]/20 rounded-2xl">
+      <BentoCard glowColor="purple" className="p-6 bg-black/50 border-[#00E5FF]/20 rounded-2xl">
         <div className="flex flex-wrap items-center justify-between border-b border-white/10 pb-4 mb-4 gap-2">
           <div className="flex items-center gap-2">
-            <Database className="w-5 h-5 text-[#7DF9FF]" />
+            <Database className="w-5 h-5 text-[#00E5FF]" />
             <h3 className="font-display text-lg font-bold text-white uppercase tracking-wider">
               Supabase & Infrastructure Telemetry
             </h3>
           </div>
-          <span className="text-[10px] font-mono text-[#7DF9FF] bg-[#7DF9FF]/10 px-2.5 py-1 rounded border border-[#7DF9FF]/30">
+          <span className="text-[10px] font-mono text-[#00E5FF] bg-[#00E5FF]/10 px-2.5 py-1 rounded border border-[#00E5FF]/30">
             AUTO KEEP-ALIVE CRON: ACTIVE (EVERY 3 DAYS)
           </span>
         </div>
@@ -170,10 +170,10 @@ export default function StatsDashboard() {
       {/* Stat cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map((card) => (
-          <BentoCard key={card.label} glowColor="signal" className="rounded-2xl p-5 md:p-6 relative overflow-hidden group bg-black/40 border-white/5 transition-all duration-300 hover:border-[#7DF9FF]/30 hover:bg-[#7DF9FF]/5">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-[#7DF9FF]/5 rounded-bl-full pointer-events-none transition-all duration-500 group-hover:bg-[#7DF9FF]/10 group-hover:scale-125" />
+          <BentoCard key={card.label} glowColor="signal" className="rounded-2xl p-5 md:p-6 relative overflow-hidden group bg-black/40 border-white/5 transition-all duration-300 hover:border-[#00E5FF]/30 hover:bg-[#00E5FF]/5">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-[#00E5FF]/5 rounded-bl-full pointer-events-none transition-all duration-500 group-hover:bg-[#00E5FF]/10 group-hover:scale-125" />
             <p className="text-muted text-[10px] font-mono tracking-widest uppercase mb-2 font-semibold group-hover:text-white/80 transition-colors">{card.label}</p>
-            <p className="text-white font-display text-4xl md:text-5xl font-extrabold tracking-wider mb-2 group-hover:text-[#7DF9FF] transition-colors duration-300 drop-shadow-[0_0_10px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_15px_rgba(125,249,255,0.4)]">
+            <p className="text-white font-display text-4xl md:text-5xl font-extrabold tracking-wider mb-2 group-hover:text-[#00E5FF] transition-colors duration-300 drop-shadow-[0_0_10px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_15px_rgba(125,249,255,0.4)]">
               {card.value}
             </p>
             <p className="text-muted/70 text-xs font-body font-medium">{card.sub}</p>

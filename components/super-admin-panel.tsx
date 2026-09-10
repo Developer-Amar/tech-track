@@ -408,7 +408,7 @@ export default function SuperAdminPanel({
                         ⚠️ {unit.tab_switches}/{unit.tab_switch_limit} STRIKES
                       </span>
                     ) : (
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border border-[#7DF9FF]/20 bg-[#7DF9FF]/5 text-[#7DF9FF] font-semibold">
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border border-[#00E5FF]/20 bg-[#00E5FF]/5 text-[#00E5FF] font-semibold">
                         🛡️ PROCTOR: OK
                       </span>
                     )}

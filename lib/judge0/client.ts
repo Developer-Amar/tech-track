@@ -91,6 +91,7 @@ export async function executeCode(
     `${JUDGE0_API_URL}/submissions?base64_encoded=true&wait=true`,
     {
       method: "POST",
+      signal: AbortSignal.timeout(10000),
       headers: {
         "Content-Type": "application/json",
         "X-RapidAPI-Key": JUDGE0_API_KEY,

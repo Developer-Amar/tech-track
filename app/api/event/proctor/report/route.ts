@@ -1,23 +1,23 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-
-// In-memory active device tracking per (unit_id, checkpoint_id)
-// Structure: Map<`${unitId}_${checkpointId}`, { sessionToken: string, userName: string, lastHeartbeat: number }>
-const activeDeviceMap = new Map<string, { sessionToken: string; userName: string; lastHeartbeat: number }>();
+import { inspectPastePayload } from "@/lib/proctor/ai-detector";
 
 /**
  * POST /api/event/proctor/report
  *
- * Proctoring reporting API:
+ * Proctoring reporting & AI Behavioral telemetry API:
  * Handles:
  * - action: "register_device" | "heartbeat" | "report_strike" | "paste_detected"
- * - event_type: "tab_switch" | "focus_loss" | "paste_detected"
- * - Enforces single active device per team per round.
- * - Increments tab_switches/focus loss count, flags staff, locks unit if limit hit.
+ * - event_type: "tab_switch" | "focus_loss" | "paste_detected" | "devtools_opened" | "fullscreen_exit"
+ * - Enforces single active device per team per round backed by unit_device_sessions table.
+ * - Increments tab_switches / strikes, flags staff, locks unit if limit reached.
  */
 export async function POST(request: Request) {
   const supabase = createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   let body: {
@@ -26,6 +26,8 @@ export async function POST(request: Request) {
     event_type?: string;
     session_token?: string;
     detail?: string;
+    snippet?: string;
+    char_count?: number;
   };
 
   try {
@@ -34,6 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
+  const roundNumber = Number(body.round) || 1;
   const admin = createAdminClient();
 
   // Get user profile name
@@ -55,45 +58,59 @@ export async function POST(request: Request) {
 
   if (!membership) return NextResponse.json({ error: "No unit" }, { status: 400 });
 
-  // Get checkpoint
+  // Get checkpoint (optional for Round 2)
   const { data: checkpoint } = await admin
     .from("checkpoints")
     .select("id")
-    .eq("round_number", body.round)
-    .single();
+    .eq("round_number", roundNumber)
+    .maybeSingle();
 
-  if (!checkpoint) return NextResponse.json({ error: "Invalid round" }, { status: 400 });
+  const checkpointId = checkpoint?.id ?? null;
+  const now = new Date();
+  const sessionToken = body.session_token ?? "token_default";
 
-  const deviceKey = `${membership.unit_id}_${checkpoint.id}`;
-  const now = Date.now();
-
-  // ── 1. Single Active Device Lock Check ─────────────────────────────────
+  // ── 1. Single Active Device Lock (Persistent in DB) ───────────────────
   if (body.action === "register_device" || body.action === "heartbeat") {
-    const existing = activeDeviceMap.get(deviceKey);
-    const sessionToken = body.session_token ?? "token_default";
+    // Check if another device session is active for this unit & round
+    const { data: existingSession } = await admin
+      .from("unit_device_sessions")
+      .select("*")
+      .eq("unit_id", membership.unit_id)
+      .eq("round_number", roundNumber)
+      .maybeSingle();
 
-    // Expire heartbeat after 45 seconds of inactivity
-    if (existing && existing.sessionToken !== sessionToken && now - existing.lastHeartbeat < 45000) {
-      return NextResponse.json({
-        active_device_blocked: true,
-        active_user_name: existing.userName,
-        message: `Access Blocked: ${existing.userName} is currently active on another device for your team.`,
-      });
+    if (existingSession) {
+      const lastHbTime = new Date(existingSession.last_heartbeat).getTime();
+      const isExpired = Date.now() - lastHbTime > 45000; // 45 second heartbeat expiration
+
+      if (!isExpired && existingSession.session_token !== sessionToken) {
+        return NextResponse.json({
+          active_device_blocked: true,
+          active_user_name: existingSession.user_name,
+          message: `Access Blocked: ${existingSession.user_name} is currently active on another device for your team.`,
+        });
+      }
     }
 
-    // Register/update device session
-    activeDeviceMap.set(deviceKey, {
-      sessionToken,
-      userName,
-      lastHeartbeat: now,
-    });
+    // Upsert current device session
+    await admin.from("unit_device_sessions").upsert(
+      {
+        unit_id: membership.unit_id,
+        round_number: roundNumber,
+        user_id: user.id,
+        user_name: userName,
+        session_token: sessionToken,
+        last_heartbeat: now.toISOString(),
+      },
+      { onConflict: "unit_id,round_number" }
+    );
 
     // Return current proctoring state
     const { data: state } = await admin
       .from("proctoring_state")
       .select("*")
       .eq("unit_id", membership.unit_id)
-      .eq("checkpoint_id", checkpoint.id)
+      .eq("round_number", roundNumber)
       .maybeSingle();
 
     return NextResponse.json({
@@ -105,64 +122,93 @@ export async function POST(request: Request) {
     });
   }
 
-  // ── 2. Report Proctor Strike (tab_switch, focus_loss, paste) ───────────
-  let { data: state } = await admin
+  // ── 2. Report Proctor Strike (tab_switch, focus_loss, paste, devtools) ──
+  const eventType = body.event_type || "tab_switch";
+  let severity = "low";
+  const metadata: Record<string, unknown> = {
+    reported_by: userName,
+    user_id: user.id,
+    detail: body.detail,
+  };
+
+  let isAiFlag = false;
+  if (eventType === "paste_detected" && body.snippet) {
+    const pasteAnalysis = inspectPastePayload(body.snippet, body.char_count ?? body.snippet.length);
+    metadata.snippet_preview = body.snippet.slice(0, 300);
+    metadata.char_count = body.char_count ?? body.snippet.length;
+    metadata.ai_suspicion = pasteAnalysis.aiSuspicionScore;
+    metadata.tags = pasteAnalysis.tags;
+
+    if (pasteAnalysis.isMajorPaste || pasteAnalysis.aiSuspicionScore >= 50) {
+      severity = "high";
+      isAiFlag = true;
+    } else {
+      severity = "medium";
+    }
+  } else if (eventType === "tab_switch") {
+    severity = "medium";
+  } else if (eventType === "devtools_opened") {
+    severity = "high";
+  }
+
+  // Fetch or initialize proctoring state
+  const { data: state } = await admin
     .from("proctoring_state")
     .select("*")
     .eq("unit_id", membership.unit_id)
-    .eq("checkpoint_id", checkpoint.id)
+    .eq("round_number", roundNumber)
     .maybeSingle();
 
-  const eventType = body.event_type || "tab_switch";
+  const currentSwitches = state?.tab_switches ?? 0;
+  const limit = state?.tab_switch_limit ?? 3;
+  const newSwitches = currentSwitches + 1;
+  const willLockOut = newSwitches >= limit;
+  const currentAiFlags = state?.ai_flags_count ?? 0;
+  const newAiFlags = isAiFlag ? currentAiFlags + 1 : currentAiFlags;
 
-  if (!state) {
-    const { data: created } = await admin
-      .from("proctoring_state")
-      .insert({
+  const { data: updatedState, error: stateError } = await admin
+    .from("proctoring_state")
+    .upsert(
+      {
         unit_id: membership.unit_id,
-        checkpoint_id: checkpoint.id,
-        tab_switches: 1,
-        flagged_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-    state = created;
-  } else {
-    const newCount = state.tab_switches + 1;
-    const updates: Record<string, unknown> = { tab_switches: newCount };
+        checkpoint_id: checkpointId,
+        round_number: roundNumber,
+        tab_switches: newSwitches,
+        tab_switch_limit: limit,
+        locked_out: willLockOut,
+        ai_flags_count: newAiFlags,
+        flagged_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      },
+      { onConflict: "unit_id,round_number" }
+    )
+    .select()
+    .single();
 
-    if (!state.flagged_at) {
-      updates.flagged_at = new Date().toISOString();
-    }
-
-    if (newCount >= state.tab_switch_limit) {
-      updates.locked_out = true;
-    }
-
-    const { data: updated } = await admin
-      .from("proctoring_state")
-      .update(updates)
-      .eq("id", state.id)
-      .select()
-      .single();
-    state = updated;
+  if (stateError) {
+    console.error("Failed to update proctoring_state:", stateError.message);
   }
 
-  // Record detailed entry in proctoring_events audit table
+  // Record rich event in proctoring_events
   await admin.from("proctoring_events").insert({
     unit_id: membership.unit_id,
-    checkpoint_id: checkpoint.id,
+    checkpoint_id: checkpointId,
+    round_number: roundNumber,
     event_type: eventType,
-    occurred_at: new Date().toISOString(),
+    severity,
+    metadata,
+    occurred_at: now.toISOString(),
   });
 
   return NextResponse.json({
     unit_id: membership.unit_id,
-    tab_switches: state?.tab_switches ?? 0,
-    tab_switch_limit: state?.tab_switch_limit ?? 3,
-    locked_out: state?.locked_out ?? false,
-    remaining: Math.max(0, (state?.tab_switch_limit ?? 3) - (state?.tab_switches ?? 0)),
+    tab_switches: updatedState?.tab_switches ?? newSwitches,
+    tab_switch_limit: limit,
+    locked_out: updatedState?.locked_out ?? willLockOut,
+    remaining: Math.max(0, limit - newSwitches),
     event_type: eventType,
+    severity,
+    ai_flagged: isAiFlag,
   });
 }
 
@@ -172,14 +218,16 @@ export async function POST(request: Request) {
  */
 export async function GET(request: Request) {
   const supabase = createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
   const round = searchParams.get("round");
-
-  if (!round) return NextResponse.json({ error: "round required" }, { status: 400 });
+  const roundNumber = round ? parseInt(round, 10) : 1;
 
   const { data: membership } = await admin
     .from("unit_members")
@@ -189,24 +237,20 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   if (!membership) {
-    return NextResponse.json({ tab_switches: 0, tab_switch_limit: 3, locked_out: false, remaining: 3, unit_id: null });
-  }
-
-  const { data: checkpoint } = await admin
-    .from("checkpoints")
-    .select("id")
-    .eq("round_number", parseInt(round))
-    .single();
-
-  if (!checkpoint) {
-    return NextResponse.json({ tab_switches: 0, tab_switch_limit: 3, locked_out: false, remaining: 3, unit_id: membership.unit_id });
+    return NextResponse.json({
+      tab_switches: 0,
+      tab_switch_limit: 3,
+      locked_out: false,
+      remaining: 3,
+      unit_id: null,
+    });
   }
 
   const { data: state } = await admin
     .from("proctoring_state")
     .select("*")
     .eq("unit_id", membership.unit_id)
-    .eq("checkpoint_id", checkpoint.id)
+    .eq("round_number", roundNumber)
     .maybeSingle();
 
   return NextResponse.json({

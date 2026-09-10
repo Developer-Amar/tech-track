@@ -8,14 +8,14 @@ export default function EventWaiting() {
 
       <div className="flex justify-center mb-8">
         <span className="flex h-6 w-6 relative">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#7DF9FF] opacity-50" />
-          <span className="relative inline-flex rounded-full h-6 w-6 bg-[#7DF9FF] shadow-[0_0_15px_rgba(125,249,255,0.5)] items-center justify-center">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E5FF] opacity-50" />
+          <span className="relative inline-flex rounded-full h-6 w-6 bg-[#00E5FF] shadow-[0_0_15px_rgba(125,249,255,0.5)] items-center justify-center">
             <Clock className="w-3 h-3 text-black" />
           </span>
         </span>
       </div>
 
-      <p className="font-mono text-[10px] uppercase text-[#7DF9FF] tracking-[0.2em] mb-2 font-semibold">EVENT LOBBY STANDBY</p>
+      <p className="font-mono text-[10px] uppercase text-[#00E5FF] tracking-[0.2em] mb-2 font-semibold">EVENT LOBBY STANDBY</p>
       <h3 className="font-display text-4xl md:text-5xl font-extrabold text-white uppercase mb-4 tracking-wider">
         WAITING TO START
       </h3>

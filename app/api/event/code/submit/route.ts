@@ -1,6 +1,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { runAgainstTestCases, type SupportedLanguage } from "@/lib/judge0/client";
+import { analyzeCodeForAI } from "@/lib/proctor/ai-detector";
 
 /**
  * POST /api/event/code/submit
@@ -70,6 +71,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid round." }, { status: 400 });
   }
 
+  // ── Verify round progression: must have completed checkpoint ──────────
+  const { data: progress } = await admin
+    .from("round_progress")
+    .select("id, status")
+    .eq("unit_id", membership.unit_id)
+    .eq("checkpoint_id", checkpoint.id)
+    .maybeSingle();
+
+  if (!progress || progress.status !== "checkpoint_done") {
+    if (progress?.status === "passed" || progress?.status === "skipped") {
+      return NextResponse.json({ error: "Round already completed." }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: "You must solve the riddle and verify the checkpoint code before submitting code." },
+      { status: 400 }
+    );
+  }
+
+  // ── Proctor Lockout Guard ─────────────────────────────────────────────
+  const { data: proctorState } = await admin
+    .from("proctoring_state")
+    .select("locked_out, tab_switches, tab_switch_limit, ai_flags_count")
+    .eq("unit_id", membership.unit_id)
+    .eq("round_number", round)
+    .maybeSingle();
+
+  if (proctorState?.locked_out) {
+    return NextResponse.json(
+      { error: "Submission blocked: Your team is locked out by the proctoring system. Contact event staff." },
+      { status: 403 }
+    );
+  }
+
   const { data: question } = await admin
     .from("coding_questions")
     .select("id")
@@ -115,8 +149,11 @@ export async function POST(request: Request) {
     );
   }
 
-  // ── Save submission ───────────────────────────────────────────────────
-  const tabSwitches = body.tab_switches ?? 0;
+  // ── AI Code Analysis & Fingerprinting ─────────────────────────────────
+  const aiResult = analyzeCodeForAI(code, language);
+
+  // ── Save submission with AI scores ────────────────────────────────────
+  const tabSwitches = proctorState?.tab_switches ?? body.tab_switches ?? 0;
   await admin.from("submissions").insert({
     unit_id: membership.unit_id,
     checkpoint_id: checkpoint.id,
@@ -125,8 +162,40 @@ export async function POST(request: Request) {
     passed: runResult.all_passed,
     attempt_number: attemptNumber,
     tab_switches: tabSwitches,
-    flagged: tabSwitches > 0,
+    flagged: tabSwitches > 0 || aiResult.flagged,
+    ai_score: aiResult.score,
+    ai_flagged: aiResult.flagged,
+    ai_reason: aiResult.reasons.join("; "),
   });
+
+  // If AI flags detected, log to proctoring_events and update state
+  if (aiResult.flagged) {
+    await admin.from("proctoring_events").insert({
+      unit_id: membership.unit_id,
+      checkpoint_id: checkpoint.id,
+      round_number: round,
+      event_type: "ai_code_flag",
+      severity: aiResult.score >= 75 ? "critical" : "high",
+      metadata: {
+        ai_score: aiResult.score,
+        confidence: aiResult.confidence,
+        reasons: aiResult.reasons,
+        attempt: attemptNumber,
+      },
+      occurred_at: new Date().toISOString(),
+    });
+
+    if (proctorState) {
+      await admin
+        .from("proctoring_state")
+        .update({
+          ai_flags_count: (proctorState.ai_flags_count ?? 0) + 1,
+          flagged_at: new Date().toISOString(),
+        })
+        .eq("unit_id", membership.unit_id)
+        .eq("round_number", round);
+    }
+  }
 
   // ── If all passed, mark round complete ────────────────────────────────
   if (runResult.all_passed) {

@@ -36,7 +36,7 @@ export default function SettingsPanel({
       <BentoCard glowColor="danger" hoverScale={false} className="p-6 md:p-8 bg-black/40 border-white/5 relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-bl-full pointer-events-none transition-all duration-500 group-hover:bg-red-500/10 group-hover:scale-110" />
         <h4 className="font-display text-2xl md:text-3xl font-bold text-white mb-4 uppercase tracking-wider flex items-center gap-3">
-          <Settings className="w-6 h-6 text-[#7DF9FF] animate-spin-slow" /> 
+          <Settings className="w-6 h-6 text-[#00E5FF] animate-spin-slow" /> 
           Registration Settings
         </h4>
         

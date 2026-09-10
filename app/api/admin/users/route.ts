@@ -1,4 +1,4 @@
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+﻿import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 /**
@@ -6,8 +6,8 @@ import { NextResponse } from "next/server";
  * Returns all users with profile data and their unit membership.
  *
  * PATCH /api/admin/users
- * Updates a user's editable fields (role, name, branch, semester, roll_no).
- * Super admin only.
+ * Updates a user's editable fields (role, name, branch, semester, roll_no, mobile_number, pass_code).
+ * Super admin or admin.
  */
 export async function GET() {
   const supabase = createClient();
@@ -43,11 +43,12 @@ export async function GET() {
   const unitMap = new Map((units ?? []).map(u => [u.id, u]));
 
   // Map memberships to users
-  const membershipMap = new Map<string, { unit_name: string; unit_type: string; status: string }>();
+  const membershipMap = new Map<string, { unit_id: string; unit_name: string; unit_type: string; status: string }>();
   for (const m of memberships ?? []) {
     const unit = unitMap.get(m.unit_id);
     if (unit) {
       membershipMap.set(m.user_id, {
+        unit_id: unit.id,
         unit_name: unit.name ?? "Unnamed Team",
         unit_type: unit.unit_type,
         status: m.status,

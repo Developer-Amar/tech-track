@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import BentoCard from "@/components/bento-card";
 import { Trophy } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 type LeaderboardEntry = {
   rank: number;
@@ -14,23 +15,54 @@ type LeaderboardEntry = {
   last_completed_at: string | null;
 };
 
-export default function Leaderboard() {
+export default function Leaderboard({ round }: { round?: number } = {}) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function fetchLeaderboard() {
-    const res = await fetch("/api/event/leaderboard");
-    if (res.ok) {
-      const data = await res.json();
-      setEntries(data.leaderboard);
+    try {
+      const res = await fetch("/api/event/leaderboard");
+      if (res.ok) {
+        const data = await res.json();
+        setEntries(data.leaderboard ?? []);
+      }
+    } catch {
+      // Non-fatal
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {
     fetchLeaderboard();
-    const interval = setInterval(fetchLeaderboard, 30000);
-    return () => clearInterval(interval);
+
+    // Zero-Latency Supabase Realtime subscription
+    const supabase = createClient();
+    const channel = supabase
+      .channel("leaderboard-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "round_progress" },
+        () => {
+          fetchLeaderboard();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "units" },
+        () => {
+          fetchLeaderboard();
+        }
+      )
+      .subscribe();
+
+    // Periodic fallback refresh
+    const interval = setInterval(fetchLeaderboard, 45000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, []);
 
   if (loading) {
@@ -62,11 +94,11 @@ export default function Leaderboard() {
     <BentoCard glowColor="default" className="p-6 md:p-8 text-left relative overflow-hidden bg-black/40 border-white/5">
       <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#7DF9FF] font-semibold flex items-center gap-2 mb-1">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold flex items-center gap-2 mb-1">
             <Trophy className="w-3 h-3" /> STANDINGS
           </p>
           <h3 className="font-display text-3xl md:text-4xl font-extrabold text-white uppercase">
-            Leaderboard
+            {round ? `Round ${round} Leaderboard` : 'Leaderboard'}
           </h3>
         </div>
         <p className="text-muted text-[10px] font-mono uppercase tracking-[0.2em] animate-pulse font-semibold border border-white/10 px-3 py-1.5 rounded-lg bg-white/5">
@@ -127,17 +159,17 @@ export default function Leaderboard() {
             key={entry.unit_id}
             className={`grid grid-cols-12 gap-2 rounded-xl px-5 py-4 text-sm items-center border transition-all duration-300 ${
               entry.rank <= 3
-                ? "bg-[#7DF9FF]/5 border-[#7DF9FF]/20 hover:border-[#7DF9FF]/40 hover:bg-[#7DF9FF]/10"
+                ? "bg-[#00E5FF]/5 border-[#00E5FF]/20 hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10"
                 : "bg-black/40 border-white/5 hover:border-white/20 hover:bg-white/5"
             }`}
           >
-            <div className="col-span-1 font-mono font-bold text-[#7DF9FF]">
+            <div className="col-span-1 font-mono font-bold text-[#00E5FF]">
               {entry.rank < 10 ? `0${entry.rank}` : entry.rank}
             </div>
             <div className="col-span-4 md:col-span-5 font-display text-white text-lg uppercase truncate tracking-wide">
               {entry.name}
             </div>
-            <div className="col-span-2 text-center font-mono font-bold text-[#7DF9FF]">
+            <div className="col-span-2 text-center font-mono font-bold text-[#00E5FF]">
               {entry.total_points}
             </div>
             <div className="col-span-2 text-center font-mono text-white/90 hidden md:block">

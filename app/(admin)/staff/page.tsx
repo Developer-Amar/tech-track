@@ -66,16 +66,23 @@ export default async function StaffPage() {
 
         {/* QR Scanner */}
         <div className="glass-panel rounded-2xl p-6 mb-6">
-          <h3 className="font-display text-lg font-bold text-text uppercase mb-3 tracking-wider flex items-center gap-2">
-            <span className="text-signal">◆</span> PASS SCANNER
-          </h3>
-          <p className="text-dormant text-xs font-mono mb-4">Scan an event pass QR code or type the 8-character code to look up a participant.</p>
+          <div className="mb-4">
+            <span className="font-mono text-[9px] uppercase tracking-widest text-signal font-semibold">
+              LIVE CHECKPOINT VERIFIER
+            </span>
+            <h3 className="font-display text-xl font-bold text-text uppercase tracking-wider flex items-center gap-2">
+              <span className="text-signal">◆</span> OUTPOST SCANNER & AUTO-ADVANCE
+            </h3>
+            <p className="text-dormant text-xs font-mono mt-1">
+              Scan any team member&apos;s pass to automatically advance their team, or view secret station codes.
+            </p>
+          </div>
           <BarcodeScanner />
         </div>
 
         {/* Codes panel display */}
         <div className="glass-panel rounded-2xl p-6 mb-6">
-          <CheckpointCodesPanel />
+          <CheckpointCodesPanel showScanner={false} />
         </div>
 
         {/* Live proctoring alerts */}

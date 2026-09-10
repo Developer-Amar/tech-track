@@ -19,7 +19,7 @@ import { Activity, LayoutDashboard, Trophy } from "lucide-react";
 export const revalidate = 0; // Fresh state on every request
 
 /**
- * Event page — Redesigned Antigravity Bento Grid Layout
+ * Event page — Round-aware with Round 1 / Round 2 support
  */
 export default async function EventPage({
   searchParams,
@@ -57,14 +57,26 @@ export default async function EventPage({
     .eq("id", membership.unit_id)
     .single();
 
-  // Event settings
+  // Event settings — including round management columns
   const { data: settings } = await admin
     .from("event_settings")
-    .select("event_live, total_rounds")
+    .select("event_live, total_rounds, current_round_phase, round_1_stopped, round_2_active, round_2_stopped")
     .eq("id", 1)
     .single();
 
-  const totalRounds = settings?.total_rounds ?? 3;
+  const totalRounds = settings?.total_rounds ?? 10;
+  const roundPhase = settings?.current_round_phase ?? 1;
+  const round1Stopped = settings?.round_1_stopped ?? false;
+  const round2Active = settings?.round_2_active ?? false;
+  const round2Stopped = settings?.round_2_stopped ?? false;
+
+  // Check if team is qualified for Round 2
+  const { data: qualifier } = await admin
+    .from("round_qualifiers")
+    .select("id")
+    .eq("unit_id", membership.unit_id)
+    .maybeSingle();
+  const isQualified = !!qualifier;
 
   // Get checkpoints
   const { data: checkpoints } = await admin
@@ -117,7 +129,7 @@ export default async function EventPage({
   let sampleInput = null;
   let sampleOutput = null;
 
-  if (settings?.event_live && !allDone) {
+  if (settings?.event_live && !allDone && !round1Stopped) {
     const activeCheckpoint = (checkpoints ?? []).find(
       (cp) => cp.round_number === currentRound
     );
@@ -146,15 +158,31 @@ export default async function EventPage({
     }
   }
 
-  const showLeaderboard = searchParams.tab === "leaderboard";
+  /**
+   * Leaderboard Visibility Rules:
+   * - During Round 1: NO leaderboard visible to participants
+   * - Round 1 closed: Round 1 leaderboard visible to ALL
+   * - During Round 2: Round 1 leaderboard only (participants)
+   * - Round 2 closed: Both leaderboards visible
+   */
+  const canSeeR1Leaderboard = round1Stopped;
+  const canSeeR2Leaderboard = round2Stopped;
+  const canSeeLeaderboardTab = canSeeR1Leaderboard;
+  const showLeaderboard = searchParams.tab === "leaderboard" && canSeeLeaderboardTab;
+
+  // Determine what to show for main content
+  const showRound2Arena = round2Active && !round2Stopped && isQualified;
+  const showRound1Complete = round1Stopped && !round2Active && !round2Stopped;
+  const showRound1Active = settings?.event_live && !round1Stopped && !allDone;
+  const showRound1Done = (allDone || round1Stopped) && !showRound2Arena;
 
   return (
-    <main className="min-h-screen px-4 py-8 relative z-10 select-none selection:bg-[#7DF9FF] selection:text-black">
+    <main className="min-h-screen px-4 py-8 relative z-10 select-none selection:bg-[#00E5FF] selection:text-black">
       <div className="mx-auto max-w-5xl">
         {/* Navigation HUD */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 pb-4 border-b border-white/5">
           <div className="mb-4 sm:mb-0">
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#7DF9FF] font-semibold flex items-center gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold flex items-center gap-2">
               <Activity className="w-4 h-4" /> EVENT PORTAL
             </span>
             <h1 className="font-display text-4xl font-extrabold tracking-tight text-white uppercase mt-1">
@@ -201,15 +229,23 @@ export default async function EventPage({
 
         {/* Main Content Areas */}
         <div className="mt-8">
-          {showLeaderboard && !unit?.disqualified && <Leaderboard />}
+          {/* Leaderboard Tab */}
+          {showLeaderboard && !unit?.disqualified && canSeeR1Leaderboard && (
+            <div className="space-y-6">
+              <Leaderboard round={1} />
+              {canSeeR2Leaderboard && <Leaderboard round={2} />}
+            </div>
+          )}
 
+          {/* Arena Content */}
           {!showLeaderboard && !unit?.disqualified && (
             <div className="space-y-6">
-              {!settings?.event_live ? (
+              {/* Round 2 Arena for qualified teams */}
+              {showRound2Arena ? (
+                <Round2Arena unitId={membership.unit_id} />
+              ) : !settings?.event_live && !round1Stopped ? (
                 <EventWaiting />
-              ) : allDone ? (
-                <EventComplete totalRounds={totalRounds} />
-              ) : (
+              ) : showRound1Active ? (
                 <div className="space-y-6">
                   <RoundHeader
                     round={currentRound}
@@ -241,6 +277,27 @@ export default async function EventPage({
                     />
                   )}
                 </div>
+              ) : showRound1Done ? (
+                <div className="space-y-6">
+                  <EventComplete totalRounds={totalRounds} />
+                  {/* If Round 1 stopped and leaderboard visible, show inline */}
+                  {canSeeR1Leaderboard && (
+                    <div className="mt-8">
+                      <Leaderboard round={1} />
+                    </div>
+                  )}
+                  {/* Show Round 2 waiting message for non-qualified teams */}
+                  {round2Active && !isQualified && (
+                    <BentoCard delay={0.3} className="p-6 text-center">
+                      <p className="font-mono text-sm text-dormant">
+                        Round 2 is in progress for qualified teams. Your results are final.
+                      </p>
+                    </BentoCard>
+                  )}
+                  {canSeeR2Leaderboard && <Leaderboard round={2} />}
+                </div>
+              ) : (
+                <EventWaiting />
               )}
             </div>
           )}
@@ -249,3 +306,4 @@ export default async function EventPage({
     </main>
   );
 }
+

@@ -1,11 +1,23 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import WebGLBackground from "./webgl-background";
-import GlobalAnnouncements from "./global-announcements";
+import dynamic from "next/dynamic";
+
+const WebGLBackground = dynamic(() => import("./webgl-background"), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 z-[-1] bg-[#000000] pointer-events-none" />,
+});
+
+const RealtimeSync = dynamic(() => import("./realtime-sync"), {
+  ssr: false,
+});
+
+const GlobalAnnouncements = dynamic(() => import("./global-announcements"), {
+  ssr: false,
+});
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -38,6 +50,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <>
       <WebGLBackground />
+      <RealtimeSync />
       <GlobalAnnouncements />
       <div className="relative z-10 w-full min-h-screen">
         {children}

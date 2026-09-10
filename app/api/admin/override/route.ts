@@ -254,7 +254,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: "Member removed." });
     }
 
-    // ── Nuclear: reset all registrations ──────────────────────────────
+    // Nuclear: reset all registrations and tournament state
     case "reset_all_registrations": {
       // Unlock all units first to avoid trigger blocking deletes
       await admin.from("units").update({ locked: false, locked_at: null }).neq("id", "00000000-0000-0000-0000-000000000000");
@@ -264,12 +264,25 @@ export async function POST(request: Request) {
       await admin.from("submissions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await admin.from("proctoring_events").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await admin.from("notifications").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      
+      // Also reset Round 2
+      await admin.from("round_2_submissions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await admin.from("round_2_progress").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await admin.from("round_qualifiers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
       await admin.from("unit_members").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await admin.from("units").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
       await admin
         .from("event_settings")
-        .update({ registration_open: true, event_live: false })
+        .update({ 
+          registration_open: true, 
+          event_live: false,
+          current_round_phase: 1,
+          round_1_stopped: false,
+          round_2_active: false,
+          round_2_stopped: false
+        })
         .eq("id", 1);
 
       await admin.from("audit_log").insert({
@@ -278,13 +291,23 @@ export async function POST(request: Request) {
         action_detail: { timestamp: new Date().toISOString() },
       });
 
-      return NextResponse.json({ success: true, message: "All registrations wiped. Registration reopened." });
+      return NextResponse.json({ success: true, message: "All registrations and tournament state wiped. Registration reopened." });
     }
 
     case "reset_tab_switches": {
       const rtBody = body as { unit_id?: string };
-      let query = admin.from("proctoring_state").update({ tab_switches: 0, locked_out: false, flagged_at: null });
-      if (rtBody.unit_id) query = query.eq("unit_id", rtBody.unit_id);
+      let query = admin.from("proctoring_state").update({
+        tab_switches: 0,
+        locked_out: false,
+        ai_flags_count: 0,
+        flagged_at: null,
+      });
+      if (rtBody.unit_id) {
+        query = query.eq("unit_id", rtBody.unit_id);
+        await admin.from("unit_device_sessions").delete().eq("unit_id", rtBody.unit_id);
+      } else {
+        await admin.from("unit_device_sessions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      }
       await query;
 
       await admin.from("audit_log").insert({

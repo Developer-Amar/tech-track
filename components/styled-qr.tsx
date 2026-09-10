@@ -10,7 +10,7 @@ import QRCode from "qrcode";
 export default function StyledQR({
   data,
   size = 110,
-  dotColor = "#7DF9FF",
+  dotColor = "#00E5FF",
   dimColor = "rgba(125,249,255,0.12)",
   active = true,
 }: {

@@ -47,18 +47,38 @@ export async function POST(request: Request) {
     .eq("checkpoint_id", checkpoint.id)
     .maybeSingle();
 
-  if (!progress) return NextResponse.json({ error: "Solve the riddle first" }, { status: 400 });
+  if (!progress) {
+    return NextResponse.json({ error: "Solve the riddle and verify checkpoint first." }, { status: 400 });
+  }
   if (progress.status === "passed" || progress.status === "skipped") {
     return NextResponse.json({ error: "Round already completed" }, { status: 400 });
   }
+  if (progress.status !== "checkpoint_done") {
+    return NextResponse.json(
+      { error: "Checkpoint code must be verified at the physical outpost before skipping the coding challenge." },
+      { status: 400 }
+    );
+  }
 
   // Points earned so far: 10 (riddle) + 10 (checkpoint) = 20, code = 0 (skipped)
-  const earnedPoints = 20; // riddle + checkpoint only, no code points
+  const earnedPoints = 20;
 
-  await admin
+  const { error: updateError } = await admin
     .from("round_progress")
-    .update({ status: "skipped", points: earnedPoints })
+    .update({
+      status: "skipped",
+      points: earnedPoints,
+      completed_at: new Date().toISOString(),
+    })
     .eq("id", progress.id);
+
+  if (updateError) {
+    console.error("Failed to skip round challenge:", updateError.message);
+    return NextResponse.json(
+      { error: "Failed to record skip in database: " + updateError.message },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({
     success: true,

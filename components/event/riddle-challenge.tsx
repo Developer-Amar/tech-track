@@ -23,26 +23,41 @@ export default function RiddleChallenge({
     setLoading(true);
     setFeedback(null);
 
-    const res = await fetch("/api/event/riddle/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answer: answer.trim(), round }),
-    });
+    try {
+      const res = await fetch("/api/event/riddle/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answer: answer.trim(), round }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.correct) {
-      setFeedback({ correct: true, message: data.message });
-      setTimeout(() => router.refresh(), 1000);
-    } else {
-      setFeedback({ correct: false, message: data.message || "Incorrect. Give it another try!" });
+      if (res.ok && data.correct) {
+        setFeedback({ correct: true, message: data.message });
+        router.refresh();
+        // Guaranteed transition: refresh Next.js cache and hard reload if needed
+        setTimeout(() => {
+          window.location.reload();
+        }, 1200);
+      } else {
+        setFeedback({
+          correct: false,
+          message: data.error || data.message || "Incorrect. Give it another try!",
+        });
+        setLoading(false);
+      }
+    } catch {
+      setFeedback({
+        correct: false,
+        message: "Network error. Please try again.",
+      });
       setLoading(false);
     }
   }
 
   return (
     <BentoCard glowColor="purple" className="rounded-2xl p-6 md:p-8 text-left relative overflow-hidden group">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-[#7DF9FF]/5 rounded-bl-full pointer-events-none transition-all duration-500 group-hover:bg-[#7DF9FF]/10 group-hover:scale-110" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-[#00E5FF]/5 rounded-bl-full pointer-events-none transition-all duration-500 group-hover:bg-[#00E5FF]/10 group-hover:scale-110" />
 
       <p className="font-mono text-[9px] uppercase text-signal tracking-widest mb-1.5 font-semibold">STAGE CHIEF: RIDDLE</p>
       <h3 className="font-display text-3xl font-extrabold text-white uppercase mb-1">

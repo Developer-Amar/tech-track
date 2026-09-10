@@ -62,7 +62,7 @@ export default function ProfileTerminal({
     : "#94A3B8";
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 relative py-12 z-10 selection:bg-[#7DF9FF] selection:text-black">
+    <main className="flex min-h-screen items-center justify-center px-4 relative py-12 z-10 selection:bg-[#00E5FF] selection:text-black">
       <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-8 items-center">
         {/* ── Left Column: Holographic Pass (desktop) ── */}
         <div className="hidden md:flex flex-col items-center justify-center h-[560px] relative">
@@ -101,10 +101,10 @@ export default function ProfileTerminal({
         {/* ── Right Column: Form Panel ── */}
         <div className="glass-panel hud-corner-card rounded-2xl p-8 relative overflow-hidden">
           {/* Ambient glow accent */}
-          <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#7DF9FF]/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#00E5FF]/5 rounded-full blur-2xl pointer-events-none" />
 
           <div className="mb-6 text-left select-none">
-            <span className="font-mono text-[9px] uppercase tracking-widest text-[#7DF9FF] mb-1.5 font-semibold block">
+            <span className="font-mono text-[9px] uppercase tracking-widest text-[#00E5FF] mb-1.5 font-semibold block">
               EVENT REGISTRATION
             </span>
             <h1 className="font-display text-3xl font-extrabold text-white uppercase tracking-tight">
@@ -121,8 +121,8 @@ export default function ProfileTerminal({
                     width: `${(passState.filledCount / 4) * 100}%`,
                     background:
                       passState.filledCount === 4
-                        ? "linear-gradient(90deg, #22C55E, #7DF9FF)"
-                        : "linear-gradient(90deg, #7DF9FF, #A78BFA)",
+                        ? "linear-gradient(90deg, #22C55E, #00E5FF)"
+                        : "linear-gradient(90deg, #00E5FF, #A78BFA)",
                   }}
                 />
               </div>
@@ -133,7 +133,7 @@ export default function ProfileTerminal({
                 {progressText}
               </span>
             </div>
-            <div className="h-px bg-gradient-to-r from-transparent via-[#7DF9FF]/20 to-transparent w-full my-4" />
+            <div className="h-px bg-gradient-to-r from-transparent via-[#00E5FF]/20 to-transparent w-full my-4" />
           </div>
 
           <CompleteProfileForm

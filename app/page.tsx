@@ -45,7 +45,7 @@ export default async function Home({
 
   return (
     <>
-      <main className="min-h-screen flex flex-col justify-between py-12 px-6 relative max-w-7xl mx-auto z-10 selection:bg-[#7DF9FF] selection:text-black">
+      <main className="min-h-screen flex flex-col justify-between py-12 px-6 relative max-w-7xl mx-auto z-10 selection:bg-[#00E5FF] selection:text-black">
         {/* Top HUD Header */}
         <header className="w-full flex flex-col sm:flex-row justify-between items-center pb-6 text-[10px] font-mono text-muted uppercase tracking-[0.2em] gap-4">
           <div className="flex items-center gap-4">
@@ -71,7 +71,7 @@ export default async function Home({
           {/* Left Side: Hero */}
           <BentoCard className="lg:col-span-8 p-8 md:p-12 flex flex-col justify-between min-h-[500px]" delay={0.1} glowColor="signal">
             <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-[#7DF9FF]/10 border border-[#7DF9FF]/30 text-signal font-mono text-xs uppercase tracking-widest font-semibold">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-signal font-mono text-xs uppercase tracking-widest font-semibold">
                 <span className="h-1.5 w-1.5 rounded-full bg-signal animate-pulse" />
                 {isLive ? "THE HUNT IS ACTIVE" : "PRE-LAUNCH PREPARATIONS"}
               </div>
@@ -109,7 +109,7 @@ export default async function Home({
             <BentoCard className="p-6 md:p-8 flex-1 flex flex-col justify-between" delay={0.2} glowColor="purple">
               <div className="flex justify-between items-center border-b border-white/5 pb-4 font-mono text-[10px] text-muted uppercase tracking-[0.15em]">
                 <div>[ TELEMETRY MONITOR ]</div>
-                <div className="text-[#4B0082] drop-shadow-[0_0_8px_rgba(75,0,130,0.8)] font-bold">LIVE_SYS_01</div>
+                <div className="text-[#A855F7] drop-shadow-[0_0_8px_rgba(75,0,130,0.8)] font-bold">LIVE_SYS_01</div>
               </div>
 
               <div className="space-y-4 mt-6 font-mono text-sm tracking-wide">
@@ -210,7 +210,7 @@ export default async function Home({
       <footer className="relative z-10 w-full max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center text-xs font-mono text-muted border-t border-white/5 pt-6 pb-8 px-6">
         <div className="tracking-[0.1em] text-[10px] uppercase">[ CODE PIPELINE ESTABLISHED ]</div>
         <div className="mt-4 sm:mt-0 flex items-center gap-3">
-          <span className="inline-block h-2 w-2 rounded-full bg-[#7DF9FF] shadow-[0_0_10px_#7DF9FF] animate-pulse" />
+          <span className="inline-block h-2 w-2 rounded-full bg-[#00E5FF] shadow-[0_0_10px_#00E5FF] animate-pulse" />
           <span className="tracking-[0.1em] text-[10px]">SYSTEM SECURE</span>
         </div>
       </footer>

@@ -370,12 +370,12 @@ export default function CodeEditor({
             <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/80 shadow-[0_0_5px_rgba(234,179,8,0.5)]" />
             <span className="h-2.5 w-2.5 rounded-full bg-green-500/80 shadow-[0_0_5px_rgba(34,197,94,0.5)]" />
             <span className="ml-2 text-white/90 font-semibold flex items-center gap-2">
-              <TerminalSquare className="w-3 h-3 text-[#7DF9FF]"/>
+              <TerminalSquare className="w-3 h-3 text-[#00E5FF]"/>
               solution.{language === "cpp" ? "cpp" : language === "python" ? "py" : language}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {ideSmartFeatures ? <Unlock className="w-3 h-3 text-[#7DF9FF]" /> : <Lock className="w-3 h-3 text-red-500" />}
+            {ideSmartFeatures ? <Unlock className="w-3 h-3 text-[#00E5FF]" /> : <Lock className="w-3 h-3 text-red-500" />}
             [CYBER_DECK_ENGINE]
           </div>
         </div>

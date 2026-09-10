@@ -3,9 +3,11 @@
 import { useState } from "react";
 import AdminTabs from "@/components/admin/admin-tabs";
 import StatsDashboard from "@/components/admin/stats-dashboard";
+import AdminLiveLeaderboard from "@/components/admin/admin-live-leaderboard";
 import UsersTable from "@/components/admin/users-table";
 import UnitsTable from "@/components/admin/units-table";
-import ContentEditor from "@/components/admin/content-editor";
+import RoundQualifierPanel from "@/components/admin/round-qualifier-panel";
+import ContentWrapper from "@/components/admin/content-wrapper";
 import CheckpointCodesPanel from "@/components/checkpoint-codes-panel";
 import SubmissionsTable from "@/components/admin/submissions-table";
 import AuditLog from "@/components/admin/audit-log";
@@ -48,12 +50,12 @@ export default function AdminPanelClient({
   const isSuperAdmin = profileRole === "super_admin";
 
   return (
-    <main className="min-h-screen px-4 py-8 relative z-10 select-none selection:bg-[#7DF9FF] selection:text-black">
+    <main className="min-h-screen px-4 py-8 relative z-10 select-none selection:bg-[#00E5FF] selection:text-black">
       <div className="mx-auto max-w-6xl">
         {/* Navigation HUD header */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4 border-b border-white/5 pb-4">
           <div className="mb-4 sm:mb-0">
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#7DF9FF] font-semibold flex items-center gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold flex items-center gap-2">
               <ShieldAlert className="w-4 h-4" /> ADMIN CONTROL
             </span>
             <h1 className="font-display text-4xl md:text-5xl font-extrabold tracking-tight text-white uppercase mt-1">
@@ -73,7 +75,7 @@ export default function AdminPanelClient({
 
         {/* User Identity HUD */}
         <p className="text-muted text-[10px] font-mono uppercase tracking-[0.2em] mb-8 bg-black/40 inline-block px-3 py-1.5 rounded-lg border border-white/5 shadow-inner">
-          OPERATOR: <span className="text-white font-bold">{profileName}</span> · ROLE: <span className="text-[#7DF9FF] font-bold">{profileRole.replace("_", " ").toUpperCase()}</span>
+          OPERATOR: <span className="text-white font-bold">{profileName}</span> · ROLE: <span className="text-[#00E5FF] font-bold">{profileRole.replace("_", " ").toUpperCase()}</span>
         </p>
 
         {/* Tabs Control */}
@@ -87,12 +89,14 @@ export default function AdminPanelClient({
 
         {/* Tab content displays in Glassmorphic Wrapper */}
         <BentoCard glowColor="purple" className="p-6 md:p-8 relative overflow-hidden bg-black/40 border-white/5">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-[#7DF9FF]/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-48 h-48 bg-[#00E5FF]/5 rounded-full blur-3xl pointer-events-none" />
 
           {activeTab === "dashboard" && <StatsDashboard />}
+          {activeTab === "leaderboard" && <AdminLiveLeaderboard />}
           {activeTab === "users" && <UsersTable isSuperAdmin={isSuperAdmin} />}
           {activeTab === "units" && <UnitsTable isSuperAdmin={isSuperAdmin} />}
-          {activeTab === "content" && isSuperAdmin && <ContentEditor />}
+          {activeTab === "rounds" && isSuperAdmin && <RoundQualifierPanel />}
+          {activeTab === "content" && isSuperAdmin && <ContentWrapper />}
           {activeTab === "codes" && <CheckpointCodesPanel />}
           {activeTab === "submissions" && <SubmissionsTable />}
           {activeTab === "audit" && isSuperAdmin && <AuditLog />}

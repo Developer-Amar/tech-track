@@ -30,7 +30,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 relative z-10 selection:bg-[#7DF9FF] selection:text-black">
+    <main className="flex min-h-screen items-center justify-center px-4 relative z-10 selection:bg-[#00E5FF] selection:text-black">
       <BentoCard className="w-full max-w-md p-10 text-center flex flex-col items-center" delay={0.1} glowColor="signal">
         
         <div className="mb-8 select-none w-full flex flex-col items-center">
@@ -39,7 +39,7 @@ export default function LoginPage() {
           <h1 className="font-display text-4xl font-extrabold tracking-tight text-white mb-2 uppercase">
             <KineticText delay={0.2}>SIGN IN</KineticText>
           </h1>
-          <div className="h-px bg-gradient-to-r from-transparent via-[#7DF9FF]/30 to-transparent w-full my-6" />
+          <div className="h-px bg-gradient-to-r from-transparent via-[#00E5FF]/30 to-transparent w-full my-6" />
           <p className="text-muted font-body text-sm max-w-xs mx-auto">
             Authorize terminal access using your Chitkara University Google account to join the hunt.
           </p>
@@ -48,7 +48,7 @@ export default function LoginPage() {
         <button
           onClick={handleSignIn}
           disabled={loading}
-          className="w-full inline-flex items-center justify-center gap-3 rounded-xl bg-black/40 border border-[#7DF9FF]/20 hover:border-[#7DF9FF] hover:bg-[#7DF9FF]/10 px-6 py-4 text-white font-body font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-[0_0_15px_rgba(125,249,255,0.02)] hover:shadow-[0_0_25px_rgba(125,249,255,0.2)]"
+          className="w-full inline-flex items-center justify-center gap-3 rounded-xl bg-black/40 border border-[#00E5FF]/20 hover:border-[#00E5FF] hover:bg-[#00E5FF]/10 px-6 py-4 text-white font-body font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-[0_0_15px_rgba(125,249,255,0.02)] hover:shadow-[0_0_25px_rgba(125,249,255,0.2)]"
         >
           {/* Google "G" icon */}
           <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">

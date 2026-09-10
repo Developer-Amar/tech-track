@@ -41,26 +41,18 @@ export async function GET() {
       dbStatus = `error: ${error?.message || "unknown"}`;
     }
 
-    // Write: upsert a heartbeat record so Supabase definitely
-    // registers this as "activity" for the pause-prevention check.
-    // Uses a dedicated heartbeat_log table (single-row upsert).
+    // Write: insert a heartbeat record so Supabase registers activity
     try {
       const { error: writeError } = await admin
         .from("heartbeat_log")
-        .upsert(
-          {
-            id: 1,
-            last_ping: new Date().toISOString(),
-            source: "health-endpoint",
-            ping_count: 1,
-          },
-          { onConflict: "id" }
-        );
+        .insert({
+          service: "health-endpoint",
+          status: "alive",
+          latency_ms: dbLatencyMs,
+        });
 
       if (!writeError) {
         heartbeatWritten = true;
-        // Also increment ping_count
-        try { await admin.rpc("increment_heartbeat_count"); } catch { /* non-fatal */ }
       }
     } catch {
       // Non-fatal: heartbeat write failed but read succeeded

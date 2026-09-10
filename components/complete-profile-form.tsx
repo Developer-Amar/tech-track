@@ -161,9 +161,8 @@ export default function CompleteProfileForm({
     });
 
     setTimeout(() => {
-      router.push("/dashboard");
-      router.refresh();
-    }, 2000);
+      window.location.href = "/dashboard";
+    }, 1500);
   }
 
   const currentValues = {
