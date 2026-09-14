@@ -99,6 +99,10 @@ export default function CodeEditor({
     // Track paste events in Monaco
     editor.onDidPaste(() => {
       pasteCountRef.current += 1;
+      const sessionToken =
+        typeof window !== "undefined"
+          ? sessionStorage.getItem("device_session_token")
+          : null;
       // Report paste to proctor API
       fetch("/api/event/proctor/report", {
         method: "POST",
@@ -107,8 +111,9 @@ export default function CodeEditor({
           round,
           action: "report_strike",
           event_type: "paste_detected",
+          session_token: sessionToken || undefined,
         }),
-      });
+      }).catch((err) => console.warn("Paste telemetry error:", err));
     });
 
     // Define custom Tech Track Cyber Dark theme
@@ -157,33 +162,43 @@ export default function CodeEditor({
 
     const timeTakenSeconds = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
 
-    const res = await fetch("/api/event/code/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        code: codeToSubmit,
-        language,
-        round,
-        tab_switches: tabSwitches,
-        time_taken_seconds: timeTakenSeconds,
-        paste_count: pasteCountRef.current,
-        keystroke_count: keystrokeCountRef.current,
-      }),
-    });
+    try {
+      const res = await fetch("/api/event/code/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: codeToSubmit,
+          language,
+          round,
+          tab_switches: tabSwitches,
+          time_taken_seconds: timeTakenSeconds,
+          paste_count: pasteCountRef.current,
+          keystroke_count: keystrokeCountRef.current,
+        }),
+      });
 
-    const data = await res.json();
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`Server returned HTTP ${res.status}. Submission could not be processed.`);
+      }
 
-    if (!res.ok) {
-      setError(data.error || "Submission failed");
+      if (!res.ok) {
+        setError(data?.error || "Submission failed");
+        return;
+      }
+
+      setResults(data);
+
+      if (data.all_passed) {
+        setTimeout(() => router.refresh(), 2000);
+      }
+    } catch (err: any) {
+      console.error("Code submission error:", err);
+      setError(err?.message || "Network error. Please check your connection and try again.");
+    } finally {
       setLoading(false);
-      return;
-    }
-
-    setResults(data);
-    setLoading(false);
-
-    if (data.all_passed) {
-      setTimeout(() => router.refresh(), 2000);
     }
   }
 
@@ -205,6 +220,8 @@ export default function CodeEditor({
         minimap: { enabled: false },
         scrollBeyondLastLine: false,
         automaticLayout: true,
+        wordWrap: "on",
+        wrappingIndent: "indent",
         tabSize: 4,
         insertSpaces: true,
         lineNumbers: "on",
@@ -236,6 +253,8 @@ export default function CodeEditor({
         minimap: { enabled: false },
         scrollBeyondLastLine: false,
         automaticLayout: true,
+        wordWrap: "on",
+        wrappingIndent: "indent",
         tabSize: 4,
         insertSpaces: true,
         lineNumbers: "on",
@@ -380,27 +399,29 @@ export default function CodeEditor({
           </div>
         </div>
 
-        <Editor
-          height="380px"
-          language={currentMonacoLang}
-          value={code}
-          onChange={(val) => setCode(val ?? "")}
-          onMount={handleEditorDidMount}
-          options={monacoOptions}
-          loading={
-            <div className="flex flex-col items-center justify-center h-full text-dormant font-mono text-xs animate-pulse py-20">
-              <span className="text-signal text-lg font-bold mb-2">⚡ LOADING VS CODE EDITOR ENGINE...</span>
-              <span>Initializing language features & syntax highlighter</span>
-            </div>
-          }
-        />
+        <div className="h-[320px] xs:h-[360px] sm:h-[400px] md:h-[440px]">
+          <Editor
+            height="100%"
+            language={currentMonacoLang}
+            value={code}
+            onChange={(val) => setCode(val ?? "")}
+            onMount={handleEditorDidMount}
+            options={monacoOptions}
+            loading={
+              <div className="flex flex-col items-center justify-center h-full text-dormant font-mono text-xs animate-pulse py-20">
+                <span className="text-signal text-lg font-bold mb-2">⚡ LOADING VS CODE EDITOR ENGINE...</span>
+                <span>Initializing language features & syntax highlighter</span>
+              </div>
+            }
+          />
+        </div>
       </div>
 
       {/* Submit Action */}
       <button
         onClick={handleSubmit}
         disabled={loading || !code.trim()}
-        className="w-full mt-5 btn-cyber px-4 py-4 rounded-xl text-xs uppercase font-bold tracking-widest"
+        className="w-full min-h-[48px] mt-5 btn-cyber px-4 py-3.5 rounded-xl text-xs sm:text-sm uppercase font-bold tracking-widest"
       >
         {loading ? "COMPILING & EXECUTING TEST SUITES..." : "RUN & SUBMIT CODE"}
       </button>

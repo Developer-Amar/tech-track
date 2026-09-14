@@ -50,22 +50,22 @@ export default function AdminPanelClient({
   const isSuperAdmin = profileRole === "super_admin";
 
   return (
-    <main className="min-h-screen px-4 py-8 relative z-10 select-none selection:bg-[#00E5FF] selection:text-black">
+    <main className="min-h-screen px-3 xs:px-4 sm:px-6 py-6 sm:py-8 relative z-10 select-none selection:bg-[#00E5FF] selection:text-black">
       <div className="mx-auto max-w-6xl">
         {/* Navigation HUD header */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4 border-b border-white/5 pb-4">
-          <div className="mb-4 sm:mb-0">
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4" /> ADMIN CONTROL
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 border-b border-white/5 pb-4">
+          <div>
+            <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold flex items-center gap-2">
+              <ShieldAlert className="w-3.5 h-3.5" /> ADMIN CONTROL · IEI × IETE
             </span>
-            <h1 className="font-display text-4xl md:text-5xl font-extrabold tracking-tight text-white uppercase mt-1">
+            <h1 className="font-display text-2xl xs:text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white uppercase mt-0.5">
               <KineticText delay={0.1}>ADMIN CENTER</KineticText>
             </h1>
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-start sm:justify-end">
             <a
               href="/dashboard"
-              className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 px-4 py-2 text-muted font-body text-xs transition-all duration-300 uppercase tracking-wider font-semibold flex items-center gap-2 backdrop-blur-sm"
+              className="min-h-[44px] rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 px-4 py-2 text-muted font-body text-xs transition-all duration-300 uppercase tracking-wider font-semibold flex items-center gap-2 backdrop-blur-sm"
             >
               <LayoutDashboard className="w-4 h-4" /> Dashboard
             </a>
@@ -74,7 +74,7 @@ export default function AdminPanelClient({
         </div>
 
         {/* User Identity HUD */}
-        <p className="text-muted text-[10px] font-mono uppercase tracking-[0.2em] mb-8 bg-black/40 inline-block px-3 py-1.5 rounded-lg border border-white/5 shadow-inner">
+        <p className="text-muted text-[9px] sm:text-[10px] font-mono uppercase tracking-[0.2em] mb-6 sm:mb-8 bg-black/40 inline-block px-3 py-1.5 rounded-lg border border-white/5 shadow-inner">
           OPERATOR: <span className="text-white font-bold">{profileName}</span> · ROLE: <span className="text-[#00E5FF] font-bold">{profileRole.replace("_", " ").toUpperCase()}</span>
         </p>
 
@@ -88,7 +88,7 @@ export default function AdminPanelClient({
         </div>
 
         {/* Tab content displays in Glassmorphic Wrapper */}
-        <BentoCard glowColor="purple" className="p-6 md:p-8 relative overflow-hidden bg-black/40 border-white/5">
+        <BentoCard glowColor="purple" className="p-4 sm:p-6 md:p-8 relative overflow-hidden bg-black/40 border-white/5">
           <div className="absolute top-0 right-0 w-48 h-48 bg-[#00E5FF]/5 rounded-full blur-3xl pointer-events-none" />
 
           {activeTab === "dashboard" && <StatsDashboard />}

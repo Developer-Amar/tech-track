@@ -172,7 +172,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // ── Add leader as accepted member ─────────────────────────────────────
+  // ── Add leader as accepted member with compensatory rollback (TT-14) ───
   const { error: leaderError } = await adminSupabase
     .from("unit_members")
     .insert({
@@ -183,10 +183,16 @@ export async function POST(request: Request) {
     });
 
   if (leaderError) {
-    console.error("Failed to add leader as member:", leaderError.message);
+    console.error("Failed to add leader as member, rolling back unit:", leaderError.message);
+    await adminSupabase.from("units").delete().eq("id", unit.id);
+    return NextResponse.json(
+      { error: `Failed to initialize team leader membership: ${leaderError.message}` },
+      { status: 500 }
+    );
   }
 
-  // ── Send invites ──────────────────────────────────────────────────────
+  // ── Send invites with rollback on failure (TT-14) ──────────────────────
+  const failedInvites: string[] = [];
   for (const invitee of invitees) {
     const { error: inviteError } = await adminSupabase
       .from("unit_members")
@@ -197,8 +203,20 @@ export async function POST(request: Request) {
       });
 
     if (inviteError) {
-      console.error(`Failed to invite ${invitee.email}:`, inviteError.message);
+      failedInvites.push(`${invitee.email} (${inviteError.message})`);
     }
+  }
+
+  if (failedInvites.length > 0) {
+    console.error("Some invites failed, rolling back team creation:", failedInvites);
+    // Roll back members and unit
+    await adminSupabase.from("unit_members").delete().eq("unit_id", unit.id);
+    await adminSupabase.from("units").delete().eq("id", unit.id);
+
+    return NextResponse.json(
+      { error: `Failed to invite team members: ${failedInvites.join(", ")}. Team creation rolled back.` },
+      { status: 400 }
+    );
   }
 
   return NextResponse.json({ success: true, unit_id: unit.id });

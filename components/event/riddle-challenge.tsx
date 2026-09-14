@@ -35,10 +35,6 @@ export default function RiddleChallenge({
       if (res.ok && data.correct) {
         setFeedback({ correct: true, message: data.message });
         router.refresh();
-        // Guaranteed transition: refresh Next.js cache and hard reload if needed
-        setTimeout(() => {
-          window.location.reload();
-        }, 1200);
       } else {
         setFeedback({
           correct: false,

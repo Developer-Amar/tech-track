@@ -7,18 +7,24 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Red & Carbon-Black modern tech tokens
-        void: "#06080E",
-        panel: "rgba(15, 18, 27, 0.65)",
-        dormant: "#94A3B8",
-        signal: "#FF1E56",
+        // Contrast-audited Antigravity v2 tokens
+        void: "#0D1017",                    // Lifted card bg (was #06080E)
+        panel: "rgba(18, 22, 35, 0.75)",    // Glass panel (was 0.65)
+        dormant: "#A0AEC0",                 // Brighter muted text (was #94A3B8)
+        signal: "#00E5FF",                  // Electric Cyan — unified with CSS
+        crimson: "#FF1E56",                 // Preserved red for badges/active tabs
+        gold: "#F59E0B",                    // Warm ranking accent
         danger: "#EF4444",
         text: "#F8FAFC",
       },
       fontFamily: {
-        display: ['"Space Grotesk"', "sans-serif"],
+        display: ['"Outfit"', "sans-serif"],
         body: ['"Inter"', "sans-serif"],
         mono: ['"JetBrains Mono"', "monospace"],
+      },
+      screens: {
+        fold: "280px",
+        xs: "375px",
       },
     },
   },

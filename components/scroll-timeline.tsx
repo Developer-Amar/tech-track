@@ -165,17 +165,17 @@ function FloatingNode({
 }
 
 /** Camera rig: Z-axis forward flight driven by scroll progress */
-function CameraRig({ progress }: { progress: number }) {
+function CameraRig({ progressRef }: { progressRef: React.MutableRefObject<number> }) {
   const { camera } = useThree();
   const targetZ = useRef(25);
 
   useFrame(() => {
     // Map scroll progress (0→1) to camera Z (25 → -35)
-    targetZ.current = 25 - progress * 60;
+    targetZ.current = 25 - progressRef.current * 60;
     camera.position.z = THREE.MathUtils.lerp(
       camera.position.z,
       targetZ.current,
-      0.08
+      0.12
     );
 
     // Subtle organic camera sway
@@ -191,10 +191,10 @@ function CameraRig({ progress }: { progress: number }) {
 
 /** The full 3D scene rendered inside the Canvas */
 function TimelineScene({
-  progress,
+  progressRef,
   mousePos,
 }: {
-  progress: number;
+  progressRef: React.MutableRefObject<number>;
   mousePos: React.MutableRefObject<{ x: number; y: number }>;
 }) {
   // Node positions spread along Z-axis for camera fly-through
@@ -245,7 +245,7 @@ function TimelineScene({
         />
       ))}
 
-      <CameraRig progress={progress} />
+      <CameraRig progressRef={progressRef} />
     </>
   );
 }
@@ -264,14 +264,14 @@ function TimelineCard({
 }) {
   const Icon = node.icon;
   const cardRef = useRef<HTMLDivElement>(null);
-  const [glintPos, setGlintPos] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!cardRef.current) return;
       const rect = cardRef.current.getBoundingClientRect();
-      setGlintPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      cardRef.current.style.setProperty("--glint-x", `${e.clientX - rect.left}px`);
+      cardRef.current.style.setProperty("--glint-y", `${e.clientY - rect.top}px`);
     },
     []
   );
@@ -283,7 +283,8 @@ function TimelineCard({
       className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
       style={{
         opacity: visibility,
-        transform: `scale(${0.75 + visibility * 0.25})`,
+        transform: `scale(${0.75 + visibility * 0.25}) translateZ(0)`,
+        willChange: "transform, opacity",
       }}
     >
       <div
@@ -291,11 +292,11 @@ function TimelineCard({
         onMouseMove={handleMouseMove}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className="relative overflow-hidden rounded-2xl max-w-lg w-full mx-6 pointer-events-auto hud-corner-card"
+        className="relative overflow-hidden rounded-2xl max-w-lg w-[calc(100vw-1.25rem)] xs:w-[calc(100vw-2rem)] sm:w-full mx-2.5 xs:mx-4 sm:mx-6 pointer-events-auto hud-corner-card"
         style={{
-          background: "rgba(10, 10, 15, 0.7)",
+          background: "rgba(10, 10, 15, 0.8)",
           border: `1px solid ${node.glowColor}25`,
-          backdropFilter: "blur(30px)",
+          backdropFilter: "blur(16px)",
           boxShadow: `0 20px 60px -15px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.05), 0 0 80px ${node.glowColor}08`,
         }}
       >
@@ -304,7 +305,7 @@ function TimelineCard({
           <div
             className="pointer-events-none absolute -inset-px z-0 transition-opacity duration-200"
             style={{
-              background: `radial-gradient(350px circle at ${glintPos.x}px ${glintPos.y}px, ${node.glowColor}35, transparent 40%)`,
+              background: `radial-gradient(350px circle at var(--glint-x, 150px) var(--glint-y, 150px), ${node.glowColor}35, transparent 40%)`,
               opacity: 0.7,
             }}
           />
@@ -312,7 +313,7 @@ function TimelineCard({
 
         {/* Large step watermark */}
         <div
-          className="absolute top-3 right-5 font-display text-[130px] font-extrabold leading-none pointer-events-none select-none"
+          className="absolute top-2 right-4 font-display text-6xl xs:text-7xl sm:text-8xl md:text-[130px] font-extrabold leading-none pointer-events-none select-none"
           style={{ color: `${node.glowColor}08` }}
         >
           {node.step}
@@ -327,31 +328,31 @@ function TimelineCard({
         />
 
         {/* Content */}
-        <div className="relative z-10 p-8 md:p-10">
-          <div className="flex items-center gap-3 mb-5">
+        <div className="relative z-10 p-5 xs:p-6 sm:p-8 md:p-10">
+          <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-5">
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-lg"
+              className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg shrink-0"
               style={{
                 backgroundColor: `${node.glowColor}12`,
                 border: `1px solid ${node.glowColor}35`,
                 boxShadow: `0 0 15px ${node.glowColor}15`,
               }}
             >
-              <Icon className="w-5 h-5" style={{ color: node.glowColor }} />
+              <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: node.glowColor }} />
             </div>
             <span
-              className="font-mono text-[10px] uppercase tracking-[0.2em] font-semibold"
+              className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.2em] font-semibold truncate"
               style={{ color: node.glowColor }}
             >
               {node.subtitle}
             </span>
           </div>
 
-          <h3 className="font-display text-2xl md:text-3xl font-extrabold text-white uppercase tracking-tight mb-4 leading-tight">
+          <h3 className="font-display text-xl xs:text-2xl md:text-3xl font-extrabold text-white uppercase tracking-tight mb-2.5 sm:mb-4 leading-tight">
             {node.title}
           </h3>
 
-          <p className="text-[#94A3B8] text-sm md:text-base font-body leading-relaxed">
+          <p className="text-[#94A3B8] text-xs xs:text-sm md:text-base font-body leading-relaxed">
             {node.description}
           </p>
         </div>
@@ -363,7 +364,7 @@ function TimelineCard({
 /** Dot-style progress indicator showing which node is active */
 function ScrollProgress({ progress }: { progress: number }) {
   return (
-    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3">
+    <div className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 sm:gap-3 pointer-events-none">
       <div className="flex items-center gap-2.5">
         {TIMELINE_NODES.map((_, i) => {
           const nodeCenter = (i + 0.5) / TIMELINE_NODES.length;
@@ -397,6 +398,8 @@ function ScrollProgress({ progress }: { progress: number }) {
 export default function ScrollTimeline() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
+  const progressRef = useRef(0);
+  const tickingRef = useRef(false);
   const mousePos = useRef({ x: 0.5, y: 0.5 });
 
   useEffect(() => {
@@ -409,7 +412,17 @@ export default function ScrollTimeline() {
       end: "bottom bottom",
       scrub: 0.5,
       onUpdate: (self) => {
-        setProgress(self.progress);
+        // Immediate synchronous update for Three.js useFrame camera flight
+        progressRef.current = self.progress;
+
+        // Non-starving rAF throttle for DOM card visibility & progress bar
+        if (!tickingRef.current) {
+          tickingRef.current = true;
+          requestAnimationFrame(() => {
+            setProgress(self.progress);
+            tickingRef.current = false;
+          });
+        }
       },
     });
 
@@ -444,13 +457,14 @@ export default function ScrollTimeline() {
         {/* 3D WebGL Canvas — Camera flies forward on Z-axis */}
         <Canvas
           camera={{ position: [0, 0, 25], fov: 55 }}
-          gl={{ alpha: false, antialias: true, powerPreference: "high-performance" }}
+          dpr={[1, 1.5]}
+          gl={{ alpha: false, antialias: true, powerPreference: "high-performance", stencil: false }}
           className="!absolute inset-0"
           style={{ position: "absolute" }}
         >
           <color attach="background" args={["#000000"]} />
           <fog attach="fog" args={["#000000", 30, 70]} />
-          <TimelineScene progress={progress} mousePos={mousePos} />
+          <TimelineScene progressRef={progressRef} mousePos={mousePos} />
         </Canvas>
 
         {/* DOM Card Overlays — emerge from depth into focus */}

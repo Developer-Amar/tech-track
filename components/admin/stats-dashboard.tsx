@@ -168,12 +168,12 @@ export default function StatsDashboard() {
       </BentoCard>
 
       {/* Stat cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {cards.map((card) => (
-          <BentoCard key={card.label} glowColor="signal" className="rounded-2xl p-5 md:p-6 relative overflow-hidden group bg-black/40 border-white/5 transition-all duration-300 hover:border-[#00E5FF]/30 hover:bg-[#00E5FF]/5">
+          <BentoCard key={card.label} glowColor="signal" className="rounded-2xl p-4 sm:p-5 md:p-6 relative overflow-hidden group bg-black/40 border-white/5 transition-all duration-300 hover:border-[#00E5FF]/30 hover:bg-[#00E5FF]/5">
             <div className="absolute top-0 right-0 w-16 h-16 bg-[#00E5FF]/5 rounded-bl-full pointer-events-none transition-all duration-500 group-hover:bg-[#00E5FF]/10 group-hover:scale-125" />
-            <p className="text-muted text-[10px] font-mono tracking-widest uppercase mb-2 font-semibold group-hover:text-white/80 transition-colors">{card.label}</p>
-            <p className="text-white font-display text-4xl md:text-5xl font-extrabold tracking-wider mb-2 group-hover:text-[#00E5FF] transition-colors duration-300 drop-shadow-[0_0_10px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_15px_rgba(125,249,255,0.4)]">
+            <p className="text-muted text-[9px] sm:text-[10px] font-mono tracking-widest uppercase mb-1.5 font-semibold group-hover:text-white/80 transition-colors">{card.label}</p>
+            <p className="text-white font-display text-3xl xs:text-4xl md:text-5xl font-extrabold tracking-wider mb-2 group-hover:text-[#00E5FF] transition-colors duration-300 drop-shadow-[0_0_10px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_15px_rgba(125,249,255,0.4)]">
               {card.value}
             </p>
             <p className="text-muted/70 text-xs font-body font-medium">{card.sub}</p>

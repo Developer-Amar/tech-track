@@ -28,6 +28,16 @@
     background-attachment: fixed;
     /* Lenis needs this to function correctly sometimes */
     overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent iOS Safari and Mobile Chrome forced auto-zoom on inputs */
+  @media screen and (max-width: 640px) {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -35,6 +45,32 @@
     font-weight: 700;
     letter-spacing: -0.02em;
   }
+}
+
+/* ── SAFE AREA INSETS FOR MODERN MOBILE SCREENS (NOTCH & DYNAMIC ISLAND) ── */
+.safe-top {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.safe-x {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+/* Touch momentum scrolling & hidden scrollbar utility */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* ── LENIS SMOOTH SCROLL OVERRIDES ── */
@@ -139,7 +175,6 @@ html.lenis, html.lenis body {
   box-shadow: 2px 2px 10px rgba(var(--signal-rgb), 0.4);
 }
 
-/* ── TRANSLUCENT NEXUS GLASS PANELS ── */
 .glass-panel {
   background: rgba(13, 16, 23, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -148,10 +183,12 @@ html.lenis, html.lenis body {
               inset 0 1px 1px rgba(255, 255, 255, 0.06);
   transition: border-color 0.4s, box-shadow 0.4s, transform 0.4s;
 }
-.glass-panel:hover {
-  border-color: rgba(var(--signal-rgb), 0.3);
-  box-shadow: 0 15px 50px -10px rgba(var(--signal-rgb), 0.1),
-              inset 0 1px 1px rgba(255, 255, 255, 0.08);
+@media (hover: hover) and (pointer: fine) {
+  .glass-panel:hover {
+    border-color: rgba(var(--signal-rgb), 0.3);
+    box-shadow: 0 15px 50px -10px rgba(var(--signal-rgb), 0.1),
+                inset 0 1px 1px rgba(255, 255, 255, 0.08);
+  }
 }
 
 .glass-panel-danger {

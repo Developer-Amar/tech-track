@@ -72,24 +72,26 @@ export default async function DashboardPage() {
     .eq("status", "pending");
 
   if (pendingMemberships && pendingMemberships.length > 0) {
-    for (const pm of pendingMemberships) {
-      const { data: inviteUnit } = await adminSupabase
-        .from("units")
-        .select("id, name, leader_id")
-        .eq("id", pm.unit_id)
-        .single();
+    const unitIds = pendingMemberships.map((pm) => pm.unit_id);
+    const { data: inviteUnits } = await adminSupabase
+      .from("units")
+      .select("id, name, leader_id")
+      .in("id", unitIds);
 
-      if (inviteUnit) {
-        const { data: leader } = await adminSupabase
-          .from("users")
-          .select("name")
-          .eq("id", inviteUnit.leader_id)
-          .single();
+    if (inviteUnits && inviteUnits.length > 0) {
+      const leaderIds = inviteUnits.map((u) => u.leader_id);
+      const { data: leaders } = await adminSupabase
+        .from("users")
+        .select("id, name")
+        .in("id", leaderIds);
 
+      const leaderMap = new Map((leaders ?? []).map((l) => [l.id, l.name]));
+
+      for (const inviteUnit of inviteUnits) {
         pendingInvites.push({
           unit_id: inviteUnit.id,
           team_name: inviteUnit.name,
-          leader_name: leader?.name ?? "Someone",
+          leader_name: leaderMap.get(inviteUnit.leader_id) ?? "Someone",
         });
       }
     }
@@ -157,29 +159,35 @@ export default async function DashboardPage() {
   const isLeader = unitData?.leader_id === user.id;
 
   return (
-    <main className="min-h-screen px-4 py-12 relative z-10 selection:bg-[#00E5FF] selection:text-black">
+    <main className="min-h-screen px-3 xs:px-4 sm:px-6 py-6 sm:py-12 relative z-10 selection:bg-[#00E5FF] selection:text-black">
       <div className="mx-auto max-w-4xl">
         {/* Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-4 select-none border-b border-white/5">
-          <div className="mb-4 md:mb-0 flex items-center gap-4">
-            <div className="bg-white/90 p-2 rounded flex items-center justify-center backdrop-blur-md hidden sm:flex">
-              <Image src="/assets/chitkara-university-logo.png" alt="Chitkara University" width={150} height={40} className="object-contain h-10 w-auto" />
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 sm:mb-8 pb-4 select-none border-b border-white/5 gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+            <div className="bg-white/95 p-2 sm:p-2.5 rounded-xl flex items-center gap-2.5 backdrop-blur-md shadow-sm">
+              <Image src="/assets/chitkara-university-logo.png" alt="Chitkara University" width={130} height={36} className="object-contain h-8 sm:h-10 md:h-11 w-auto" />
+              <div className="h-6 sm:h-7 w-px bg-black/15" />
+              <div className="flex items-center gap-1.5">
+                <Image src="/assets/IEI-logo.png" alt="IEI Club" width={36} height={36} className="object-contain h-7 sm:h-8.5 md:h-9 w-auto" />
+                <span className="text-black font-mono text-[12px] font-bold">×</span>
+                <Image src="/assets/IETE-logo.png" alt="IETE Club" width={36} height={36} className="object-contain h-7 sm:h-8.5 md:h-9 w-auto" />
+              </div>
             </div>
             <div>
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold flex items-center gap-2">
-                <Activity className="w-4 h-4" /> PARTICIPANT COMMAND
+              <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold flex items-center gap-2">
+                <Activity className="w-3.5 h-3.5" /> PARTICIPANT COMMAND · IEI × IETE
               </span>
-              <h1 className="font-display text-4xl font-extrabold text-white tracking-tight uppercase mt-1">
+              <h1 className="font-display text-2xl xs:text-3xl sm:text-4xl font-extrabold text-white tracking-tight uppercase mt-0.5">
                 <KineticText delay={0.1}>DASHBOARD</KineticText>
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-start md:justify-end">
             <AnnouncementsModal />
             {["admin", "super_admin"].includes(profile.role) && (
               <a
                 href="/admin"
-                className="btn-cyber-outline px-5 py-2.5 rounded-xl text-xs uppercase font-display tracking-widest"
+                className="min-h-[44px] flex items-center btn-cyber-outline px-4 sm:px-5 py-2.5 rounded-xl text-xs uppercase font-display tracking-widest"
               >
                 ADMIN PANEL
               </a>
@@ -188,15 +196,16 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6">
           {/* User profile card */}
-          <BentoCard className="md:col-span-12 p-6 md:p-8 flex items-center gap-6" delay={0.2} glowColor="purple">
+          <BentoCard className="md:col-span-12 p-5 sm:p-6 md:p-8 flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 sm:gap-6 min-w-0" delay={0.2} glowColor="purple">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/40 border border-[#00E5FF]/30 shadow-[0_0_20px_rgba(125,249,255,0.15)] relative overflow-hidden group shrink-0">
               {profile.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={profile.avatar_url}
                   alt={profile.name}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover relative z-10"
                 />
               ) : (
@@ -206,12 +215,12 @@ export default async function DashboardPage() {
                 </>
               )}
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-mono text-[10px] text-muted uppercase tracking-[0.2em] font-semibold">PARTICIPANT PROFILE</p>
-              <h2 className="font-display text-3xl font-extrabold text-white uppercase mt-1">
+              <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-white uppercase mt-1 break-words">
                 {profile.name}
               </h2>
-              <p className="font-mono text-xs text-muted mt-1">{profile.email}</p>
+              <p className="font-mono text-xs text-muted mt-1 truncate max-w-full overflow-hidden text-ellipsis">{profile.email}</p>
             </div>
           </BentoCard>
 
@@ -262,22 +271,22 @@ export default async function DashboardPage() {
               (unitData?.locked || ["admin", "super_admin", "checkpoint_staff"].includes(profile.role))
             ) ? (
               <a href="/event" className="block">
-                <BentoCard delay={0.5} glowColor="signal" className="p-8 border border-[#00E5FF]/40 bg-[#00E5FF]/5 group cursor-pointer">
+                <BentoCard delay={0.5} glowColor="signal" className="p-6 sm:p-8 border border-[#00E5FF]/40 bg-[#00E5FF]/5 group cursor-pointer">
                   <div className="absolute top-6 right-6 flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-[#00E5FF] animate-ping" />
                     <span className="h-3 w-3 rounded-full bg-[#00E5FF]" />
                   </div>
-                  <h3 className="font-display text-4xl font-bold text-[#00E5FF] uppercase tracking-wider mb-3">
+                  <h3 className="font-display text-2xl xs:text-3xl sm:text-4xl font-bold text-[#00E5FF] uppercase tracking-wider mb-2 sm:mb-3">
                     THE HUNT IS LIVE
                   </h3>
-                  <p className="text-muted font-body text-base leading-relaxed group-hover:text-white transition-colors duration-300">
+                  <p className="text-muted font-body text-sm sm:text-base leading-relaxed group-hover:text-white transition-colors duration-300">
                     The gates are open! Click here to enter the event arena.
                   </p>
                 </BentoCard>
               </a>
             ) : (
-              <BentoCard delay={0.5} glowColor="default" className="p-8 opacity-75 flex flex-col items-center text-center">
-                <h3 className="font-display text-2xl font-bold text-muted uppercase tracking-wider mb-3">
+              <BentoCard delay={0.5} glowColor="default" className="p-6 sm:p-8 opacity-75 flex flex-col items-center text-center">
+                <h3 className="font-display text-xl sm:text-2xl font-bold text-muted uppercase tracking-wider mb-2 sm:mb-3">
                   EVENT DORMANT
                 </h3>
                 <p className="text-muted text-sm font-body leading-relaxed max-w-sm">

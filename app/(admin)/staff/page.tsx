@@ -29,21 +29,21 @@ export default async function StaffPage() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-8 relative z-10 select-none">
+    <main className="min-h-screen px-3 xs:px-4 sm:px-6 py-6 sm:py-8 relative z-10 select-none">
       <div className="mx-auto max-w-2xl">
         {/* Header HUD */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4 border-b border-white/10 pb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 border-b border-white/10 pb-4">
           <div>
-            <span className="font-mono text-[9px] uppercase tracking-widest text-signal font-semibold">OUTPOST PANEL</span>
-            <h1 className="font-display text-4xl font-extrabold tracking-tight text-white uppercase">
+            <span className="font-mono text-[9px] uppercase tracking-widest text-[#00E5FF] font-semibold">OUTPOST PANEL · IEI × IETE</span>
+            <h1 className="font-display text-2xl xs:text-3xl sm:text-4xl font-extrabold tracking-tight text-white uppercase mt-0.5">
               STAFF PORTAL
             </h1>
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-start sm:justify-end">
             {["admin", "super_admin"].includes(profile.role) && (
               <a
                 href="/admin"
-                className="btn-cyber-outline px-4 py-2 rounded-lg text-xs uppercase font-display"
+                className="min-h-[44px] flex items-center btn-cyber-outline px-4 py-2 rounded-xl text-xs uppercase font-display"
               >
                 ADMIN PANEL
               </a>

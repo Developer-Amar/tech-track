@@ -70,15 +70,25 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
 
   async function updateRole(userId: string, newRole: string) {
     setSaving(userId);
-    await fetch("/api/admin/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, updates: { role: newRole } }),
-    });
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
-    );
-    setSaving(null);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, updates: { role: newRole } }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(`Failed to update role: ${data.error || res.statusText}`);
+        return;
+      }
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
+      );
+    } catch (err: any) {
+      alert(`Network error updating role: ${err?.message || "Please check connection"}`);
+    } finally {
+      setSaving(null);
+    }
   }
 
   async function executeAction() {
@@ -373,7 +383,7 @@ export default function UsersTable({ isSuperAdmin }: { isSuperAdmin: boolean }) 
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-xs font-mono">
                   <div>
                     <p className="text-dormant text-[9px] uppercase tracking-widest mb-0.5 font-semibold">Pass Code</p>
                     <p className="text-[#7DF9FF] font-bold tracking-wider">{u.pass_code || "—"}</p>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect } from "react";
 import Lenis from "lenis";
@@ -19,6 +19,14 @@ const GlobalAnnouncements = dynamic(() => import("./global-announcements"), {
   ssr: false,
 });
 
+const PWARegister = dynamic(() => import("./pwa-register"), {
+  ssr: false,
+});
+
+const PWAInstallBanner = dynamic(() => import("./pwa-install-banner"), {
+  ssr: false,
+});
+
 gsap.registerPlugin(ScrollTrigger);
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -30,19 +38,22 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       gestureOrientation: "vertical",
       smoothWheel: true,
       wheelMultiplier: 1,
-      touchMultiplier: 2,
+      touchMultiplier: 1,
+      syncTouch: false,
     });
 
     // Synchronize Lenis scroll with GSAP ScrollTrigger
     lenis.on("scroll", ScrollTrigger.update);
 
     // Drive Lenis from GSAP's ticker for perfectly synchronized animation frames
-    gsap.ticker.add((time) => {
+    const tickerFn = (time: number) => {
       lenis.raf(time * 1000);
-    });
+    };
+    gsap.ticker.add(tickerFn);
     gsap.ticker.lagSmoothing(0);
 
     return () => {
+      gsap.ticker.remove(tickerFn);
       lenis.destroy();
     };
   }, []);
@@ -52,6 +63,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       <WebGLBackground />
       <RealtimeSync />
       <GlobalAnnouncements />
+      <PWARegister />
+      <PWAInstallBanner />
       <div className="relative z-10 w-full min-h-screen">
         {children}
       </div>

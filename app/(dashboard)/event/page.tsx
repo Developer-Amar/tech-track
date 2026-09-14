@@ -177,31 +177,31 @@ export default async function EventPage({
   const showRound1Done = (allDone || round1Stopped) && !showRound2Arena;
 
   return (
-    <main className="min-h-screen px-4 py-8 relative z-10 select-none selection:bg-[#00E5FF] selection:text-black">
+    <main className="min-h-screen px-3 xs:px-4 sm:px-6 py-6 sm:py-8 relative z-10 select-none selection:bg-[#00E5FF] selection:text-black">
       <div className="mx-auto max-w-5xl">
         {/* Navigation HUD */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 pb-4 border-b border-white/5">
-          <div className="mb-4 sm:mb-0">
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold flex items-center gap-2">
-              <Activity className="w-4 h-4" /> EVENT PORTAL
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8 pb-4 border-b border-white/5">
+          <div>
+            <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-[#00E5FF] font-semibold flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5" /> EVENT PORTAL · IEI × IETE
             </span>
-            <h1 className="font-display text-4xl font-extrabold tracking-tight text-white uppercase mt-1">
+            <h1 className="font-display text-2xl xs:text-3xl sm:text-4xl font-extrabold tracking-tight text-white uppercase mt-0.5">
               <KineticText delay={0.1}>TECH TREK</KineticText>
             </h1>
           </div>
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-start sm:justify-end">
             <AnnouncementsModal />
             {canSeeLeaderboardTab && (
               <a
                 href={showLeaderboard ? "/event" : "/event?tab=leaderboard"}
-                className="btn-cyber-outline px-4 py-2 rounded-xl text-xs uppercase font-display flex items-center gap-2"
+                className="min-h-[44px] btn-cyber-outline px-3.5 sm:px-4 py-2 rounded-xl text-xs uppercase font-display flex items-center gap-2"
               >
                 {showLeaderboard ? <><Activity className="w-4 h-4"/> Arena Terminal</> : <><Trophy className="w-4 h-4"/> View Leaderboard</>}
               </a>
             )}
             <a
               href="/dashboard"
-              className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 px-4 py-2 text-muted font-body text-xs transition-all duration-300 uppercase tracking-wider font-semibold flex items-center gap-2 backdrop-blur-sm"
+              className="min-h-[44px] rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 px-3.5 sm:px-4 py-2 text-muted font-body text-xs transition-all duration-300 uppercase tracking-wider font-semibold flex items-center gap-2 backdrop-blur-sm"
             >
               <LayoutDashboard className="w-4 h-4" /> Dashboard
             </a>

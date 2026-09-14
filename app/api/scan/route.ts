@@ -108,6 +108,18 @@ export async function GET(request: Request) {
   } | null = null;
   let allRoundsCompleted = false;
 
+  // Determine checkpoint staff assignments for station scoping (TT-07)
+  let staffAssignedCheckpointIds: Set<string> | null = null;
+  if (profile.role === "checkpoint_staff") {
+    const { data: assignments } = await admin
+      .from("checkpoint_staff_assignments")
+      .select("checkpoint_id")
+      .eq("user_id", user.id);
+    if (assignments && assignments.length > 0) {
+      staffAssignedCheckpointIds = new Set(assignments.map((a) => a.checkpoint_id));
+    }
+  }
+
   if (membership) {
     // 3. Get unit details
     const { data: unitData } = await admin
@@ -175,6 +187,11 @@ export async function GET(request: Request) {
         const isFinished = status === "passed" || status === "skipped";
         let is_active = false;
 
+        const isStaffAuthorizedForStation =
+          profile.role !== "checkpoint_staff" ||
+          !staffAssignedCheckpointIds ||
+          staffAssignedCheckpointIds.has(cp.id);
+
         if (!isFinished && !foundActive) {
           is_active = true;
           foundActive = true;
@@ -183,18 +200,19 @@ export async function GET(request: Request) {
             round_number: cp.round_number,
             checkpoint_id: cp.id,
             location_name: cp.location_name,
-            secret_code: secretCode,
+            secret_code: isStaffAuthorizedForStation ? secretCode : null,
             status,
-            canVerify: status !== "checkpoint_done",
+            canVerify: status !== "checkpoint_done" && isStaffAuthorizedForStation,
             isVerified: status === "checkpoint_done",
           };
         }
 
+        // TT-07: Never leak station secret codes for inactive rounds
         rounds.push({
           round_number: cp.round_number,
           checkpoint_id: cp.id,
           location_name: cp.location_name,
-          secret_code: secretCode,
+          secret_code: is_active && isStaffAuthorizedForStation ? secretCode : null,
           status,
           points,
           completed_at,
@@ -345,6 +363,22 @@ export async function POST(request: Request) {
     );
   }
 
+  // ── Station Assignment Verification (TT-07) ───────────────────────────
+  if (staffProfile.role === "checkpoint_staff") {
+    const { data: assignments } = await admin
+      .from("checkpoint_staff_assignments")
+      .select("checkpoint_id")
+      .eq("user_id", user.id);
+
+    const assignedIds = new Set((assignments ?? []).map((a) => a.checkpoint_id));
+    if (assignedIds.size > 0 && !assignedIds.has(targetCheckpointId)) {
+      return NextResponse.json(
+        { error: "Access denied: You are not assigned to this checkpoint station." },
+        { status: 403 }
+      );
+    }
+  }
+
   // Fetch checkpoint details for confirmation message and audit logging
   const { data: checkpoint } = await admin
     .from("checkpoints")
@@ -357,6 +391,39 @@ export async function POST(request: Request) {
     .select("name")
     .eq("id", targetUnitId)
     .single();
+
+  // ── Progression Sequence Enforcement (TT-07) ──────────────────────────
+  if (checkpoint?.round_number && checkpoint.round_number > 1) {
+    const { data: priorCheckpoints } = await admin
+      .from("checkpoints")
+      .select("id, round_number")
+      .lt("round_number", checkpoint.round_number);
+
+    if (priorCheckpoints && priorCheckpoints.length > 0) {
+      const priorIds = priorCheckpoints.map((p) => p.id);
+      const { data: priorProgress } = await admin
+        .from("round_progress")
+        .select("checkpoint_id, status")
+        .eq("unit_id", targetUnitId)
+        .in("checkpoint_id", priorIds);
+
+      const completedPriorMap = new Set(
+        (priorProgress ?? [])
+          .filter((p) => p.status === "passed" || p.status === "skipped")
+          .map((p) => p.checkpoint_id)
+      );
+
+      const missingPrior = priorIds.some((id) => !completedPriorMap.has(id));
+      if (missingPrior) {
+        return NextResponse.json(
+          {
+            error: `Cannot verify Round ${checkpoint.round_number}. The team must complete earlier rounds first.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+  }
 
   // ── Update or insert round_progress ──────────────────────────────────
   const { data: existingProgress } = await admin

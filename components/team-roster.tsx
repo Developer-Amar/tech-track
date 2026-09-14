@@ -60,37 +60,39 @@ export default function TeamRoster({
   };
 
   return (
-    <div className="glass-panel border-signal/25 rounded-2xl p-6 text-left relative overflow-hidden">
+    <div className="glass-panel border-signal/25 rounded-2xl p-4 sm:p-6 text-left relative overflow-hidden">
       <div className="absolute top-0 right-0 w-24 h-24 bg-signal/5 rounded-full blur-xl pointer-events-none" />
 
       <p className="font-mono text-[9px] uppercase text-signal tracking-widest mb-1 font-semibold">TEAM MANAGEMENT</p>
-      <h3 className="font-display text-3xl font-extrabold text-white uppercase mb-1">
+      <h3 className="font-display text-2xl sm:text-3xl font-extrabold text-white uppercase mb-1 break-words">
         {teamName}
       </h3>
       <p className="text-dormant text-xs font-body mb-5 leading-relaxed">
         Waiting for members to respond. Roster updates dynamically in real-time.
       </p>
 
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         {members.map((member) => (
           <div
             key={member.user_id}
-            className="flex items-center justify-between rounded-xl border border-dormant/15 bg-void/30 px-4 py-3"
+            className="flex items-center justify-between rounded-xl border border-dormant/15 bg-void/30 p-3 sm:px-4 sm:py-3 gap-2 min-w-0"
           >
-            <div>
-              <p className="text-text font-body text-sm font-semibold">
-                {member.name}
+            <div className="min-w-0 flex-1 pr-1.5">
+              <p className="text-text font-body text-sm font-semibold truncate flex items-center gap-1.5">
+                <span className="truncate">{member.name}</span>
                 {member.is_leader && (
-                  <span className="ml-2 text-[9px] text-signal font-mono uppercase tracking-wider font-bold">
+                  <span className="text-[9px] text-signal font-mono uppercase tracking-wider font-bold shrink-0">
                     [LEADER]
                   </span>
                 )}
               </p>
-              <p className="text-dormant font-mono text-xs">{member.email}</p>
+              <p className="text-dormant font-mono text-xs truncate max-w-full overflow-hidden text-ellipsis" title={member.email}>
+                {member.email}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 shrink-0">
               <span
-                className={`rounded px-3 py-1 text-[9px] font-mono uppercase tracking-wider ${statusStyles[member.status] ?? ""}`}
+                className={`rounded px-2.5 py-1 text-[9px] font-mono uppercase tracking-wider font-bold whitespace-nowrap shrink-0 ${statusStyles[member.status] ?? ""}`}
               >
                 {member.status}
               </span>
@@ -105,10 +107,10 @@ export default function TeamRoster({
                     });
                     setMembers(prev => prev.filter(m => m.user_id !== member.user_id));
                   }}
-                  className="ml-1 text-dormant hover:text-danger transition-colors p-1"
+                  className="text-dormant hover:text-danger transition-colors p-1 shrink-0"
                   title="Remove Member"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="23" y2="12"></line><line x1="23" y1="8" x2="19" y2="12"></line></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="23" y2="12"></line><line x1="23" y1="8" x2="19" y2="12"></line></svg>
                 </button>
               )}
             </div>

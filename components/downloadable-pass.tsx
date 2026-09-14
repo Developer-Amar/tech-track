@@ -73,11 +73,9 @@ export default function DownloadablePass({
   }, [name, email, avatarUrl, mobileNumber, rollNo, branch, semester, passCode, role, unitInfo]);
 
   return (
-    <div className="flex flex-col items-center gap-6 py-4">
+    <div className="flex flex-col items-center gap-5 sm:gap-6 py-2 sm:py-4 w-full max-w-full px-1 sm:px-2">
       {/* Pass preview */}
-      <div
-        style={{ padding: "20px", background: "#05050F", borderRadius: "20px" }}
-      >
+      <div className="w-full max-w-[380px] p-2 xs:p-3 sm:p-5 bg-[#05050F] rounded-2xl flex justify-center overflow-hidden border border-white/5">
         <HolographicPass
           name={name}
           email={email}
@@ -100,7 +98,7 @@ export default function DownloadablePass({
       <button
         onClick={handleDownload}
         disabled={downloading}
-        className={`flex items-center justify-center gap-2.5 px-7 py-3 rounded-xl text-xs sm:text-sm uppercase font-display tracking-wider transition-all duration-300 select-none shadow-lg ${
+        className={`w-full sm:w-auto min-h-[48px] flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 rounded-xl text-xs sm:text-sm uppercase font-display tracking-wider transition-all duration-300 select-none shadow-lg ${
           downloadSuccess
             ? "bg-emerald-500/20 border border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.35)] scale-105"
             : downloading
@@ -126,7 +124,7 @@ export default function DownloadablePass({
         )}
       </button>
 
-      <p className="text-dormant text-[9px] font-mono uppercase tracking-widest text-center max-w-xs">
+      <p className="text-dormant text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-center max-w-xs px-2">
         Save your pass and bring it to the event. Staff will scan your QR code for verification.
       </p>
     </div>

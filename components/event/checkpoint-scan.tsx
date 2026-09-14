@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import BentoCard from "@/components/bento-card";
 import { ShieldCheck, Radio, CheckCircle, AlertTriangle, ArrowRight } from "lucide-react";
 
@@ -49,18 +50,35 @@ export default function CheckpointScan({
   locationName: string;
 }) {
   const router = useRouter();
+  const supabase = createClient();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ correct: boolean; message: string } | null>(null);
   const [verifiedByStaff, setVerifiedByStaff] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ── Background Auto-Advance Sync ─────────────────────────────────────
-  // Polls checkpoint status every 2.5s. As soon as staff scans any team
-  // member's pass, the server marks checkpoint_done and this component
-  // auto-advances the participant!
+  // ── Auto-Advance Sync (Supabase Realtime + 5s Polling Fallback) ──────
   useEffect(() => {
     let cancelled = false;
+
+    function handleVerified() {
+      if (cancelled || verifiedByStaff) return;
+      setVerifiedByStaff(true);
+      playChime("success");
+      setFeedback({
+        correct: true,
+        message: "Checkpoint verified by outpost staff! Opening coding stage...",
+      });
+
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+
+      setTimeout(() => {
+        router.refresh();
+      }, 900);
+    }
 
     async function checkStatus() {
       if (verifiedByStaff || cancelled) return;
@@ -73,40 +91,46 @@ export default function CheckpointScan({
         const data = await res.json();
 
         if (data.verified && !cancelled && !verifiedByStaff) {
-          setVerifiedByStaff(true);
-          playChime("success");
-          setFeedback({
-            correct: true,
-            message: "Checkpoint verified by outpost staff! Opening coding stage...",
-          });
-
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-          }
-
-          setTimeout(() => {
-            router.refresh();
-          }, 900);
+          handleVerified();
         }
       } catch {
         // Network flutter; ignore and retry next tick
       }
     }
 
-    // Initial check
+    // Immediate check on mount
     checkStatus();
 
-    // 2.5 second polling
-    pollIntervalRef.current = setInterval(checkStatus, 2500);
+    // 5-second polling fallback
+    pollIntervalRef.current = setInterval(checkStatus, 5000);
+
+    // Instant Realtime event subscription
+    const channel = supabase
+      .channel(`checkpoint-progress-r${round}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "round_progress",
+        },
+        (payload: any) => {
+          const status = payload.new?.status;
+          if (status === "checkpoint_done" || status === "passed" || status === "skipped") {
+            handleVerified();
+          }
+        }
+      )
+      .subscribe();
 
     return () => {
       cancelled = true;
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
       }
+      supabase.removeChannel(channel);
     };
-  }, [round, router, verifiedByStaff]);
+  }, [round, router, verifiedByStaff, supabase]);
 
   // ── Manual Code Submission Fallback ──────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {

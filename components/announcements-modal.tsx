@@ -74,7 +74,7 @@ export default function AnnouncementsModal() {
       {/* Trigger Button on Dashboard */}
       <button
         onClick={() => setIsOpen(true)}
-        className="relative inline-flex items-center gap-2 rounded-xl bg-black/40 border border-[#7DF9FF]/30 hover:border-[#7DF9FF] hover:bg-[#7DF9FF]/10 px-4 py-2.5 text-xs font-mono font-semibold uppercase tracking-wider text-[#7DF9FF] transition-all duration-300 shadow-[0_0_15px_rgba(125,249,255,0.08)] hover:shadow-[0_0_20px_rgba(125,249,255,0.25)] select-none group"
+        className="relative min-h-[44px] inline-flex items-center gap-2 rounded-xl bg-black/40 border border-[#7DF9FF]/30 hover:border-[#7DF9FF] hover:bg-[#7DF9FF]/10 px-3.5 sm:px-4 py-2.5 text-xs font-mono font-semibold uppercase tracking-wider text-[#7DF9FF] transition-all duration-300 shadow-[0_0_15px_rgba(125,249,255,0.08)] hover:shadow-[0_0_20px_rgba(125,249,255,0.25)] select-none group"
       >
         <Bell className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
         <span>ANNOUNCEMENTS</span>
@@ -88,9 +88,9 @@ export default function AnnouncementsModal() {
 
       {/* Modal Dialog */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 xs:p-4">
           <div
-            className="w-full max-w-2xl rounded-2xl border border-white/15 bg-[#0a0f18] p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200"
+            className="w-full max-w-2xl rounded-2xl border border-white/15 bg-[#0a0f18] p-4 xs:p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -100,7 +100,7 @@ export default function AnnouncementsModal() {
                   <Radio className="w-5 h-5 animate-pulse" />
                 </div>
                 <div>
-                  <h2 className="font-display text-xl font-bold uppercase tracking-wider text-white">
+                  <h2 className="font-display text-lg sm:text-xl font-bold uppercase tracking-wider text-white">
                     SYSTEM BROADCASTS & DISPATCHES
                   </h2>
                   <p className="font-mono text-[10px] uppercase tracking-widest text-muted">

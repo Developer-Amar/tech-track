@@ -228,10 +228,15 @@ export default function SuperAdminPanel({
 
       {/* Broadcast Announcement */}
       <div className="pt-4 border-t border-dormant/10 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <p className="font-mono text-[9px] uppercase text-signal tracking-widest font-semibold flex items-center gap-1.5">
-            <Radio className="w-3.5 h-3.5 animate-pulse" /> BROADCAST ANNOUNCEMENT
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
+          <div>
+            <p className="text-text font-display text-base sm:text-lg uppercase tracking-wide font-bold">
+              BROADCAST ANNOUNCEMENT
+            </p>
+            <p className="text-dormant font-mono text-xs uppercase font-semibold">
+              Broadcast live audio-alert message across all participant dashboards
+            </p>
+          </div>
           <button
             onClick={async () => {
               if (confirmAction === "clear_announcements") {
@@ -261,7 +266,7 @@ export default function SuperAdminPanel({
               }
             }}
             disabled={loading !== null}
-            className={`px-3 py-1.5 rounded-lg text-[10px] uppercase font-mono font-semibold transition-all duration-200 flex items-center gap-1.5 select-none w-fit ${
+            className={`px-3 py-2 rounded-lg text-[10px] uppercase font-mono font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 select-none w-full sm:w-auto shrink-0 min-h-[36px] ${
               confirmAction === "clear_announcements"
                 ? "bg-red-500/20 border border-red-500 text-red-300 shadow-[0_0_15px_rgba(239,68,68,0.35)] animate-pulse"
                 : "border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/60"
@@ -271,17 +276,17 @@ export default function SuperAdminPanel({
             <span>{confirmAction === "clear_announcements" ? "CONFIRM CLEAR ALL?" : "RESET ANNOUNCEMENTS"}</span>
           </button>
         </div>
-        <div className="flex flex-col md:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-2.5 w-full">
           <input
             type="text"
             id="announcement-input"
             placeholder="Type announcement message..."
-            className="flex-1 rounded-lg border border-signal/20 bg-void/50 px-4 py-2 text-text font-body text-sm focus:border-signal focus:outline-none"
+            className="min-w-0 flex-1 w-full rounded-lg border border-signal/20 bg-void/50 px-4 py-2.5 text-text font-body text-sm focus:border-signal focus:outline-none min-h-[42px]"
           />
-          <div className="flex gap-2 shrink-0">
+          <div className="flex flex-col xs:flex-row gap-2 w-full sm:w-auto shrink-0">
             <select
               id="announcement-priority"
-              className="rounded-lg border border-signal/20 bg-void/50 px-3 py-2 text-text font-mono text-xs focus:outline-none"
+              className="w-full xs:w-auto min-w-0 rounded-lg border border-signal/20 bg-void/50 px-3 py-2.5 text-text font-mono text-xs focus:outline-none min-h-[42px]"
             >
               <option value="normal">Normal Priority</option>
               <option value="urgent">Urgent Priority</option>
@@ -333,25 +338,23 @@ export default function SuperAdminPanel({
                 }
               }}
               disabled={loading !== null || announcementState === "sending"}
-              className={`px-5 py-2 rounded-lg text-xs uppercase font-mono font-semibold flex items-center justify-center gap-2 transition-all duration-300 min-w-[120px] select-none ${
-                announcementState === "sending"
-                  ? "bg-[#7DF9FF]/20 border border-[#7DF9FF] text-[#7DF9FF] cursor-wait"
-                  : announcementState === "sent"
-                  ? "bg-emerald-500/20 border border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.35)] scale-105"
+              className={`w-full xs:w-auto min-h-[42px] px-5 py-2.5 rounded-lg text-xs uppercase font-mono font-semibold transition-all duration-300 flex items-center justify-center gap-1.5 select-none shrink-0 ${
+                announcementState === "sent"
+                  ? "bg-emerald-500/20 border border-emerald-500 text-emerald-300"
                   : announcementState === "error"
-                  ? "bg-red-500/20 border border-red-500 text-red-400"
-                  : "btn-cyber hover:scale-[1.02] active:scale-[0.98]"
+                  ? "bg-red-500/20 border border-red-500 text-red-300"
+                  : "btn-cyber"
               }`}
             >
               {announcementState === "sending" ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#7DF9FF]" />
-                  <span>DISPATCHING...</span>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>SENDING...</span>
                 </>
               ) : announcementState === "sent" ? (
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>DISPATCHED!</span>
+                  <span>SENT!</span>
                 </>
               ) : announcementState === "error" ? (
                 <>
@@ -373,11 +376,11 @@ export default function SuperAdminPanel({
       {units.length > 0 && (
         <div className="pt-6 border-t border-dormant/10 space-y-3">
           <p className="font-mono text-[9px] uppercase text-signal tracking-widest mb-2 font-semibold">TEAMS ({units.length})</p>
-          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+          <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
             {units.map((unit) => (
               <div
                 key={unit.id}
-                className={`rounded-xl border px-4 py-3.5 bg-void/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                className={`rounded-xl border p-3.5 sm:p-4 bg-void/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
                   unit.proctor_locked
                     ? "border-red-500/50 bg-red-950/20 shadow-[0_0_20px_rgba(239,68,68,0.15)]"
                     : unit.disqualified
@@ -385,14 +388,14 @@ export default function SuperAdminPanel({
                     : "border-dormant/15"
                 }`}
               >
-                <div>
-                  <p className="text-text font-display text-lg uppercase tracking-wide font-bold">
+                <div className="min-w-0 flex-1">
+                  <p className="text-text font-display text-base sm:text-lg uppercase tracking-wide font-bold break-words">
                     {unit.name || unit.leader_name || "Unnamed Team"}
-                    <span className="ml-3 text-[10px] text-dormant font-mono uppercase font-semibold">
+                    <span className="ml-2.5 text-[10px] text-dormant font-mono uppercase font-semibold">
                       ({unit.unit_type})
                     </span>
                   </p>
-                  <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mt-1.5">
                     <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border font-semibold ${
                       unit.locked ? "bg-white/5 border-white/10 text-muted" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                     }`}>
@@ -436,7 +439,7 @@ export default function SuperAdminPanel({
                     <button
                       onClick={() => runOverride({ action: "reset_tab_switches", unit_id: unit.id })}
                       disabled={loading !== null}
-                      className="rounded-lg border border-emerald-500 bg-emerald-500/20 px-3 py-1.5 text-emerald-300 text-[10px] font-mono hover:bg-emerald-500/30 transition-all duration-300 disabled:opacity-50 uppercase font-bold shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center gap-1.5"
+                      className="min-h-[36px] rounded-lg border border-emerald-500 bg-emerald-500/20 px-3 py-1.5 text-emerald-300 text-[10px] font-mono hover:bg-emerald-500/30 transition-all duration-300 disabled:opacity-50 uppercase font-bold shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center gap-1.5"
                       title="Clear proctor lockout, reset strikes to 0, and unblock device session"
                     >
                       <Unlock className="w-3 h-3" />
@@ -449,7 +452,7 @@ export default function SuperAdminPanel({
                     <button
                       onClick={() => runOverride({ action: "unlock_unit", unit_id: unit.id })}
                       disabled={loading !== null}
-                      className="rounded-lg border border-signal/30 px-3 py-1.5 text-signal text-[10px] font-mono hover:bg-signal/15 transition-all duration-300 disabled:opacity-50 uppercase font-semibold"
+                      className="min-h-[36px] rounded-lg border border-signal/30 px-3 py-1.5 text-signal text-[10px] font-mono hover:bg-signal/15 transition-all duration-300 disabled:opacity-50 uppercase font-semibold flex items-center justify-center"
                       title="Unlock roster to allow team member edits"
                     >
                       {loading === "unlock_unit" ? "..." : "UNLOCK ROSTER"}
@@ -458,7 +461,7 @@ export default function SuperAdminPanel({
                     <button
                       onClick={() => runOverride({ action: "lock_unit", unit_id: unit.id })}
                       disabled={loading !== null}
-                      className="rounded-lg border border-white/20 px-3 py-1.5 text-muted hover:text-white text-[10px] font-mono hover:bg-white/5 transition-all duration-300 disabled:opacity-50 uppercase font-semibold"
+                      className="min-h-[36px] rounded-lg border border-white/20 px-3 py-1.5 text-muted hover:text-white text-[10px] font-mono hover:bg-white/5 transition-all duration-300 disabled:opacity-50 uppercase font-semibold flex items-center justify-center"
                       title="Lock roster to finalize team registration"
                     >
                       {loading === "lock_unit" ? "..." : "LOCK ROSTER"}
@@ -469,7 +472,7 @@ export default function SuperAdminPanel({
                     <button
                       onClick={() => runOverride({ action: "disqualify_unit", unit_id: unit.id, reason: "Disqualified by Super Admin" })}
                       disabled={loading !== null}
-                      className="rounded-lg border border-danger/30 px-3 py-1.5 text-danger text-[10px] font-mono hover:bg-danger/15 transition-all duration-300 disabled:opacity-50 uppercase font-semibold"
+                      className="min-h-[36px] rounded-lg border border-danger/30 px-3 py-1.5 text-danger text-[10px] font-mono hover:bg-danger/15 transition-all duration-300 disabled:opacity-50 uppercase font-semibold flex items-center justify-center"
                     >
                       DISQUALIFY
                     </button>
@@ -477,7 +480,7 @@ export default function SuperAdminPanel({
                     <button
                       onClick={() => runOverride({ action: "reinstate_unit", unit_id: unit.id })}
                       disabled={loading !== null}
-                      className="rounded-lg border border-signal/30 px-3 py-1.5 text-signal text-[10px] font-mono hover:bg-signal/15 transition-all duration-300 disabled:opacity-50 uppercase font-semibold"
+                      className="min-h-[36px] rounded-lg border border-signal/30 px-3 py-1.5 text-signal text-[10px] font-mono hover:bg-signal/15 transition-all duration-300 disabled:opacity-50 uppercase font-semibold flex items-center justify-center"
                     >
                       REINSTATE
                     </button>
@@ -491,7 +494,7 @@ export default function SuperAdminPanel({
                       }
                     }}
                     disabled={loading !== null}
-                    className="rounded-lg border border-danger/35 px-3 py-1.5 text-danger text-[10px] font-mono hover:bg-danger/15 transition-all duration-300 disabled:opacity-50 uppercase font-semibold"
+                    className="min-h-[36px] rounded-lg border border-danger/35 px-3 py-1.5 text-danger text-[10px] font-mono hover:bg-danger/15 transition-all duration-300 disabled:opacity-50 uppercase font-semibold flex items-center justify-center"
                   >
                     {confirmAction === `del-${unit.id}` ? "CONFIRM WIPE?" : "WIPE TEAM"}
                   </button>

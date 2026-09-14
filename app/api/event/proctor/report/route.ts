@@ -67,10 +67,23 @@ export async function POST(request: Request) {
 
   const checkpointId = checkpoint?.id ?? null;
   const now = new Date();
-  const sessionToken = body.session_token ?? "token_default";
 
   // ── 1. Single Active Device Lock (Persistent in DB) ───────────────────
   if (body.action === "register_device" || body.action === "heartbeat") {
+    // TT-12: Reject missing, trivial, or default tokens to prevent concurrency bypass
+    const rawSessionToken = (body.session_token || "").trim();
+    if (
+      !rawSessionToken ||
+      rawSessionToken === "token_default" ||
+      rawSessionToken === "default" ||
+      rawSessionToken.length < 8
+    ) {
+      return NextResponse.json(
+        { error: "A valid unique client device session token is required." },
+        { status: 400 }
+      );
+    }
+    const sessionToken = rawSessionToken;
     // Check if another device session is active for this unit & round
     const { data: existingSession } = await admin
       .from("unit_device_sessions")

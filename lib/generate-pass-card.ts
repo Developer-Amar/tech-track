@@ -145,7 +145,7 @@ export async function generatePassBlob(options: GeneratePassOptions): Promise<Bl
   ctx.fillStyle = "#94A3B8";
   ctx.font = "bold 15px 'Courier New', monospace";
   ctx.textAlign = "center";
-  ctx.fillText("CHITKARA UNIVERSITY · IEI CLUB", width / 2, pad + 55);
+  ctx.fillText("CHITKARA UNIVERSITY · IEI × IETE", width / 2, pad + 55);
 
   ctx.fillStyle = "#00E5FF";
   ctx.font = "900 40px 'Arial Black', Impact, sans-serif";

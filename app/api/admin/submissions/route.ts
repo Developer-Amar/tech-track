@@ -19,33 +19,38 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
 
+  // Get checkpoint round numbers
+  const { data: checkpoints } = await admin.from("checkpoints").select("id, round_number, location_name");
+  const cpMap = new Map((checkpoints ?? []).map(c => [c.id, c]));
+
   let query = admin
     .from("submissions")
     .select("id, unit_id, checkpoint_id, code, language, passed, attempt_number, submitted_at, tab_switches, flagged")
-    .order("submitted_at", { ascending: false })
-    .limit(200);
+    .order("submitted_at", { ascending: false });
 
   const roundParam = searchParams.get("round");
   const passedParam = searchParams.get("passed");
   const unitIdParam = searchParams.get("unit_id");
 
+  if (roundParam) {
+    const roundNum = parseInt(roundParam, 10);
+    const cpIds = (checkpoints ?? []).filter(c => c.round_number === roundNum).map(c => c.id);
+    if (cpIds.length > 0) {
+      query = query.in("checkpoint_id", cpIds);
+    } else {
+      return NextResponse.json({ submissions: [] });
+    }
+  }
+
   if (unitIdParam) query = query.eq("unit_id", unitIdParam);
   if (passedParam) query = query.eq("passed", passedParam === "true");
+
+  query = query.limit(200);
 
   const { data: submissions } = await query;
   if (!submissions) return NextResponse.json({ submissions: [] });
 
-  // Get checkpoint round numbers
-  const { data: checkpoints } = await admin.from("checkpoints").select("id, round_number, location_name");
-  const cpMap = new Map((checkpoints ?? []).map(c => [c.id, c]));
-
-  // Filter by round if needed
-  let filtered = submissions;
-  if (roundParam) {
-    const roundNum = parseInt(roundParam);
-    const cpIds = (checkpoints ?? []).filter(c => c.round_number === roundNum).map(c => c.id);
-    filtered = submissions.filter(s => cpIds.includes(s.checkpoint_id));
-  }
+  const filtered = submissions;
 
   // Get unit names
   const unitIds = Array.from(new Set(filtered.map(s => s.unit_id)));

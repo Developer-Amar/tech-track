@@ -218,16 +218,19 @@ export default function HolographicPass({
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         style={{
-          width: "340px",
+          width: "100%",
+          maxWidth: "340px",
+          minWidth: "0",
           borderRadius: "18px",
           border: `1px solid ${borderColor}`,
           background: "linear-gradient(170deg, rgba(12,12,24,0.95) 0%, rgba(6,6,14,0.98) 100%)",
           backdropFilter: "blur(20px)",
           boxShadow,
-          padding: "28px 24px",
+          padding: "clamp(18px, 5vw, 28px) clamp(14px, 4vw, 24px)",
           position: "relative",
           overflow: "hidden",
           cursor: "default",
+          boxSizing: "border-box",
         }}
       >
         {/* Holographic shimmer overlay */}
@@ -324,6 +327,7 @@ export default function HolographicPass({
                   <img
                     src={avatarUrl}
                     alt={name}
+                    referrerPolicy="no-referrer"
                     onError={() => setImgError(true)}
                     style={{
                       width: "52px",

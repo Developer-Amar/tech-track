@@ -14,13 +14,22 @@ export default function RealtimeSync() {
       .channel('global-schema-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public' },
-        (payload) => {
-          // Debounce the refresh to prevent spamming if many changes happen at once
+        { event: '*', schema: 'public', table: 'event_settings' },
+        () => {
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
           timeoutRef.current = setTimeout(() => {
             router.refresh();
-          }, 300); // 300ms debounce
+          }, 300);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'announcements' },
+        () => {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          timeoutRef.current = setTimeout(() => {
+            router.refresh();
+          }, 300);
         }
       )
       .subscribe();

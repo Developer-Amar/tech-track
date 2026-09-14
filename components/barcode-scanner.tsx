@@ -19,6 +19,7 @@ import {
   Upload,
   SwitchCamera,
   Info,
+  Key,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -580,16 +581,16 @@ export default function BarcodeScanner({
       />
 
       {/* HUD Header Controls */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 rounded-xl border border-signal/20 bg-void/60 backdrop-blur-md">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-signal/20 bg-void/60 backdrop-blur-md">
         {/* Station Filter Dropdown */}
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] font-mono uppercase tracking-wider text-dormant shrink-0">
+        <div className="flex flex-col xs:flex-row xs:items-center gap-2 w-full sm:w-auto min-w-0 flex-1">
+          <label className="text-[10px] font-mono uppercase tracking-wider text-dormant shrink-0 font-semibold">
             STATION OUTPOST:
           </label>
           <select
             value={selectedOutpost}
             onChange={(e) => setSelectedOutpost(e.target.value)}
-            className="rounded-lg border border-signal/30 bg-void px-3 py-1.5 text-text font-mono text-xs focus:border-signal focus:outline-none transition-all cursor-pointer"
+            className="w-full xs:w-auto min-w-0 max-w-full truncate rounded-lg border border-signal/30 bg-void px-3 py-2 text-text font-mono text-xs focus:border-signal focus:outline-none transition-all cursor-pointer"
           >
             <option value="ALL">🌐 ALL OUTPOSTS (FLOATING ADMIN)</option>
             {availableOutposts.map((op) => (
@@ -601,14 +602,14 @@ export default function BarcodeScanner({
         </div>
 
         {/* Auto-Verify on Scan Toggle */}
-        <label className="flex items-center gap-2 cursor-pointer select-none">
+        <label className="flex items-center gap-2 cursor-pointer select-none shrink-0 self-start sm:self-auto py-1">
           <input
             type="checkbox"
             checked={autoVerify}
             onChange={(e) => setAutoVerify(e.target.checked)}
             className="w-4 h-4 rounded border-signal/30 text-signal focus:ring-0 focus:ring-offset-0 bg-void accent-[#FF1E56] cursor-pointer"
           />
-          <span className="text-xs font-mono uppercase tracking-wider text-text font-semibold flex items-center gap-1.5">
+          <span className="text-xs font-mono uppercase tracking-wider text-text font-semibold flex items-center gap-1.5 whitespace-nowrap">
             <Zap className={`w-3.5 h-3.5 ${autoVerify ? "text-signal animate-pulse" : "text-dormant"}`} />
             AUTO-VERIFY ON SCAN
           </span>
@@ -616,28 +617,28 @@ export default function BarcodeScanner({
       </div>
 
       {/* Scanner Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 gap-2.5 w-full">
         {!scanning ? (
           <button
             onClick={startScanner}
-            className="flex items-center justify-center gap-2 btn-cyber px-4 py-3 rounded-lg text-xs uppercase font-display flex-1 shadow-[0_0_15px_rgba(255,30,86,0.15)]"
+            className="min-h-[46px] flex items-center justify-center gap-2 btn-cyber px-4 py-3 rounded-xl text-xs uppercase font-display tracking-wider shadow-[0_0_15px_rgba(255,30,86,0.15)]"
           >
             <Camera className="w-4 h-4" />
-            START CAMERA SCANNER
+            <span>START CAMERA SCANNER</span>
           </button>
         ) : (
-          <div className="flex gap-2 flex-1">
+          <div className="flex gap-2">
             <button
               onClick={stopScanner}
-              className="flex items-center justify-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-danger text-xs uppercase font-display flex-1 hover:bg-danger/20 transition-all"
+              className="min-h-[46px] flex items-center justify-center gap-2 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-danger text-xs uppercase font-display flex-1 hover:bg-danger/20 transition-all font-semibold"
             >
               <CameraOff className="w-4 h-4" />
-              STOP SCANNER
+              <span>STOP SCANNER</span>
             </button>
             {availableCameras.length > 1 && (
               <button
                 onClick={switchCamera}
-                className="btn-cyber-outline px-3 py-3 rounded-lg text-xs flex items-center gap-1.5 shrink-0"
+                className="min-h-[46px] btn-cyber-outline px-3.5 rounded-xl text-xs flex items-center gap-1.5 shrink-0"
                 title="Switch Camera"
               >
                 <SwitchCamera className="w-4 h-4" />
@@ -651,29 +652,34 @@ export default function BarcodeScanner({
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={loading}
-          className="btn-cyber-outline px-4 py-3 rounded-lg text-xs uppercase font-display flex items-center justify-center gap-2 shrink-0 hover:border-signal"
+          className="min-h-[46px] btn-cyber-outline px-4 py-3 rounded-xl text-xs uppercase font-display tracking-wider flex items-center justify-center gap-2 hover:border-signal"
           title="Upload or take a photo of the pass QR code"
         >
           <Upload className="w-4 h-4" />
           <span>UPLOAD QR PHOTO</span>
         </button>
+      </div>
 
-        {/* Manual code input fallback */}
-        <form onSubmit={handleManualLookup} className="flex gap-2 flex-1">
-          <input
-            type="text"
-            value={manualCode}
-            onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-            placeholder="PASS CODE (e.g. 7A8B9C10)..."
-            maxLength={12}
-            className="flex-1 rounded-lg border border-signal/25 bg-void/50 px-3.5 py-2.5 text-text font-mono text-sm focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal/30 transition-all uppercase tracking-widest text-center shadow-inner"
-          />
+      {/* Manual code input fallback */}
+      <div className="p-2.5 sm:p-3 rounded-xl border border-signal/20 bg-void/40">
+        <form onSubmit={handleManualLookup} className="flex flex-col xs:flex-row gap-2 w-full">
+          <div className="relative flex-1 min-w-0">
+            <input
+              type="text"
+              value={manualCode}
+              onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+              placeholder="ENTER PASS CODE (E.G. 7A8B9C10)..."
+              maxLength={12}
+              className="w-full rounded-lg border border-signal/25 bg-void/70 px-3.5 py-2.5 text-text font-mono text-xs sm:text-sm focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal/30 transition-all uppercase tracking-widest text-center shadow-inner placeholder:text-dormant/60"
+            />
+          </div>
           <button
             type="submit"
             disabled={!manualCode.trim() || loading}
-            className="btn-cyber-outline px-4 py-2.5 rounded-lg text-xs uppercase font-display disabled:opacity-30 shrink-0"
+            className="min-h-[42px] btn-cyber px-5 py-2.5 rounded-lg text-xs uppercase font-display tracking-wider disabled:opacity-30 shrink-0 w-full xs:w-auto flex items-center justify-center gap-1.5"
           >
-            LOOKUP
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5" />}
+            <span>LOOKUP PASS</span>
           </button>
         </form>
       </div>
@@ -757,16 +763,17 @@ export default function BarcodeScanner({
         <div className="rounded-2xl border border-signal/25 bg-panel/50 overflow-hidden shadow-[0_0_30px_rgba(125,249,255,0.05)] text-left">
           {/* Attendee Profile Header */}
           <div className="p-4 border-b border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-void/40">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               {result.user.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={result.user.avatar_url}
                   alt={result.user.name}
-                  className="w-12 h-12 rounded-full border border-signal/30 object-cover"
+                  referrerPolicy="no-referrer"
+                  className="w-12 h-12 rounded-full border border-signal/30 object-cover shrink-0"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-full bg-signal/15 border border-signal/30 flex items-center justify-center text-signal font-display font-bold text-base">
+                <div className="w-12 h-12 rounded-full bg-signal/15 border border-signal/30 flex items-center justify-center text-signal font-display font-bold text-base shrink-0">
                   {result.user.name
                     .split(" ")
                     .map((w) => w[0])
@@ -774,17 +781,20 @@ export default function BarcodeScanner({
                     .slice(0, 2)}
                 </div>
               )}
-              <div>
-                <p className="text-white font-display text-xl font-extrabold uppercase tracking-wide">
+              <div className="min-w-0 flex-1">
+                <p className="text-white font-display text-xl font-extrabold uppercase tracking-wide truncate">
                   {result.user.name}
                 </p>
-                <p className="text-dormant font-mono text-xs">
-                  {result.user.email} · PASS: <span className="text-signal font-bold">{result.user.pass_code}</span>
+                <p className="text-dormant font-mono text-xs break-all">
+                  {result.user.email}
+                </p>
+                <p className="text-dormant font-mono text-[11px] mt-0.5">
+                  PASS: <span className="text-signal font-bold tracking-wider">{result.user.pass_code}</span>
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <span className="rounded-full bg-signal/10 border border-signal/25 text-signal text-[9px] font-mono uppercase px-2.5 py-1 font-semibold">
                 ROLE: {result.user.role?.replace("_", " ")}
               </span>
@@ -893,7 +903,7 @@ export default function BarcodeScanner({
                             )
                           }
                           disabled={verifying}
-                          className="btn-cyber px-5 py-3 rounded-xl text-xs uppercase font-display flex items-center gap-2 shadow-[0_0_20px_rgba(255,30,86,0.25)] hover:scale-105 transition-all"
+                          className="btn-cyber px-5 py-3 rounded-xl text-xs uppercase font-display flex items-center justify-center gap-2 w-full sm:w-auto shadow-[0_0_20px_rgba(255,30,86,0.25)] hover:scale-105 transition-all"
                         >
                           {verifying ? (
                             <>

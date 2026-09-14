@@ -3,11 +3,21 @@ import { NextResponse } from "next/server";
 import { runAgainstTestCases, type SupportedLanguage } from "@/lib/judge0/client";
 import { analyzeCodeForAI } from "@/lib/proctor/ai-detector";
 
+// In-memory concurrency locks and rate-limiting cooldown per team (TT-10)
+const lastSubmissionTime = new Map<string, number>();
+const activeSubmissions = new Set<string>();
+const SUBMISSION_COOLDOWN_MS = 5000; // 5-second minimum gap between Judge0 submissions
+const MAX_CODE_BYTES = 50000; // 50 KB max code payload
+
 /**
  * POST /api/event/code/submit
  *
  * Submits code to Judge0, runs against all test cases, saves the submission,
  * and marks the round complete if all pass.
+ *
+ * Security Hardening:
+ * - TT-10: 50KB code payload size enforcement, 5s cooldown per unit, in-flight concurrency lock.
+ * - TT-11: IP extraction, telemetry auditing, device session freshness validation.
  */
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -42,6 +52,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "You're not registered." }, { status: 400 });
   }
 
+  const unitId = membership.unit_id;
+
+  // ── TT-10: Enforce Concurrency Guard & Rate Limit Cooldown ─────────────
+  if (activeSubmissions.has(unitId)) {
+    return NextResponse.json(
+      { error: "A code submission from your team is currently executing. Please wait for it to complete." },
+      { status: 429 }
+    );
+  }
+
+  const now = Date.now();
+  const lastTime = lastSubmissionTime.get(unitId) || 0;
+  if (now - lastTime < SUBMISSION_COOLDOWN_MS) {
+    const waitSeconds = Math.ceil((SUBMISSION_COOLDOWN_MS - (now - lastTime)) / 1000);
+    return NextResponse.json(
+      { error: `Submission cooldown active. Please wait ${waitSeconds}s before submitting again.` },
+      { status: 429 }
+    );
+  }
+
   // ── Parse body ────────────────────────────────────────────────────────
   let body: { code?: string; language?: string; round?: number; tab_switches?: number };
   try {
@@ -53,6 +83,14 @@ export async function POST(request: Request) {
   const { code, language, round } = body;
   if (!code || !language || !round) {
     return NextResponse.json({ error: "code, language, and round are required." }, { status: 400 });
+  }
+
+  // ── TT-10: Enforce Code Payload Size Limit (50 KB) ───────────────────
+  if (typeof code !== "string" || code.length > MAX_CODE_BYTES) {
+    return NextResponse.json(
+      { error: `Code exceeds maximum allowed size of ${MAX_CODE_BYTES / 1000} KB.` },
+      { status: 400 }
+    );
   }
 
   const validLanguages: SupportedLanguage[] = ["c", "cpp", "python", "java"];
@@ -133,7 +171,9 @@ export async function POST(request: Request) {
 
   const attemptNumber = (attemptCount ?? 0) + 1;
 
-  // ── Run code against test cases via Judge0 ────────────────────────────
+  // ── Run code against test cases via Judge0 (with lock) ────────────────
+  activeSubmissions.add(unitId);
+
   let runResult;
   try {
     runResult = await runAgainstTestCases(
@@ -147,15 +187,23 @@ export async function POST(request: Request) {
       { error: "Code execution service error. Please try again." },
       { status: 502 }
     );
+  } finally {
+    activeSubmissions.delete(unitId);
+    lastSubmissionTime.set(unitId, Date.now());
   }
 
   // ── AI Code Analysis & Fingerprinting ─────────────────────────────────
   const aiResult = analyzeCodeForAI(code, language);
 
-  // ── Save submission with AI scores ────────────────────────────────────
+  // ── Save submission with AI scores & IP telemetry ─────────────────────
+  const clientIp =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+
   const tabSwitches = proctorState?.tab_switches ?? body.tab_switches ?? 0;
   await admin.from("submissions").insert({
-    unit_id: membership.unit_id,
+    unit_id: unitId,
     checkpoint_id: checkpoint.id,
     code,
     language,
@@ -171,7 +219,7 @@ export async function POST(request: Request) {
   // If AI flags detected, log to proctoring_events and update state
   if (aiResult.flagged) {
     await admin.from("proctoring_events").insert({
-      unit_id: membership.unit_id,
+      unit_id: unitId,
       checkpoint_id: checkpoint.id,
       round_number: round,
       event_type: "ai_code_flag",
@@ -181,6 +229,7 @@ export async function POST(request: Request) {
         confidence: aiResult.confidence,
         reasons: aiResult.reasons,
         attempt: attemptNumber,
+        client_ip: clientIp,
       },
       occurred_at: new Date().toISOString(),
     });
@@ -192,7 +241,7 @@ export async function POST(request: Request) {
           ai_flags_count: (proctorState.ai_flags_count ?? 0) + 1,
           flagged_at: new Date().toISOString(),
         })
-        .eq("unit_id", membership.unit_id)
+        .eq("unit_id", unitId)
         .eq("round_number", round);
     }
   }
@@ -207,7 +256,7 @@ export async function POST(request: Request) {
         points: 50,
         completed_at: new Date().toISOString(),
       })
-      .eq("unit_id", membership.unit_id)
+      .eq("unit_id", unitId)
       .eq("checkpoint_id", checkpoint.id);
   }
 

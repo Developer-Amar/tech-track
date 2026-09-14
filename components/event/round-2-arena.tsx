@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import BentoCard from "@/components/bento-card";
 import KineticText from "@/components/kinetic-text";
 import {
@@ -43,10 +43,7 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ passed: boolean; message: string } | null>(null);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createClient();
 
   const fetchData = useCallback(async () => {
     try {
@@ -107,25 +104,25 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
     <ProctorGuard round={2} onLockout={() => {}}>
       <div className="space-y-6">
       {/* Header */}
-      <BentoCard delay={0.1} className="p-6">
+      <BentoCard delay={0.1} className="p-5 sm:p-6">
         <div className="flex items-center justify-between">
           <div>
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold font-semibold flex items-center gap-2">
-              <Trophy className="w-3.5 h-3.5" /> ROUND 2 — FINAL ARENA
+            <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-gold font-semibold flex items-center gap-2">
+              <Trophy className="w-3.5 h-3.5" /> ROUND 2 — FINAL ARENA · IEI × IETE
             </span>
-            <h2 className="font-display text-2xl font-bold text-white mt-1">
+            <h2 className="font-display text-xl sm:text-2xl font-bold text-white mt-1">
               <KineticText delay={0.1}>CODING CHALLENGES</KineticText>
             </h2>
           </div>
           <div className="text-right">
-            <p className="font-mono text-2xl font-bold text-gold">{totalPoints}</p>
-            <p className="font-mono text-[10px] text-dormant uppercase">{solved}/{problems.length} Solved</p>
+            <p className="font-mono text-xl sm:text-2xl font-bold text-gold">{totalPoints}</p>
+            <p className="font-mono text-[9px] sm:text-[10px] text-dormant uppercase">{solved}/{problems.length} Solved</p>
           </div>
         </div>
       </BentoCard>
 
       {/* Problem Selector */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {problems.map(problem => {
           const prog = progressMap.get(problem.id);
           const isPassed = prog?.status === 'passed';
@@ -139,11 +136,11 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
                 setSubmitResult(null);
               }}
               disabled={isPassed}
-              className={`rounded-xl border p-4 text-left transition-all duration-300 ${
+              className={`rounded-xl border p-4 text-left transition-all duration-300 min-h-[72px] ${
                 isPassed
                   ? 'border-signal/30 bg-signal/5 cursor-default'
                   : isActive
-                  ? 'border-gold/30 bg-gold/5'
+                  ? 'border-gold/30 bg-gold/5 shadow-[0_0_15px_rgba(255,215,0,0.1)]'
                   : 'border-white/[0.08] bg-void/50 hover:border-white/[0.15]'
               }`}
             >
@@ -168,10 +165,10 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
 
       {/* Active Problem View */}
       {selectedProblem && !progressMap.get(selectedProblem.id)?.status?.includes('passed') && (
-        <BentoCard delay={0.2} className="p-6">
+        <BentoCard delay={0.2} className="p-4 sm:p-6">
           <div className="space-y-4">
             <div>
-              <h3 className="font-display text-xl font-bold text-white">{selectedProblem.title}</h3>
+              <h3 className="font-display text-lg sm:text-xl font-bold text-white">{selectedProblem.title}</h3>
               <span className={`inline-block mt-1 font-mono text-[10px] uppercase px-2 py-0.5 rounded border ${
                 selectedProblem.difficulty === 'easy' ? 'border-signal/30 text-signal' :
                 selectedProblem.difficulty === 'hard' ? 'border-danger/30 text-danger' :
@@ -180,8 +177,8 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
             </div>
 
             {/* Problem Statement */}
-            <div className="rounded-lg border border-white/[0.06] bg-void/40 p-4">
-              <pre className="font-body text-sm text-dormant whitespace-pre-wrap">{selectedProblem.prompt}</pre>
+            <div className="rounded-lg border border-white/[0.06] bg-void/40 p-3 sm:p-4">
+              <pre className="font-body text-xs sm:text-sm text-dormant whitespace-pre-wrap">{selectedProblem.prompt}</pre>
             </div>
 
             {/* Sample I/O */}
@@ -190,13 +187,13 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
                 {selectedProblem.sample_input && (
                   <div className="rounded-lg border border-white/[0.06] bg-void/40 p-3">
                     <p className="font-mono text-[10px] text-dormant uppercase mb-1">Sample Input</p>
-                    <pre className="font-mono text-sm text-text">{selectedProblem.sample_input}</pre>
+                    <pre className="font-mono text-xs sm:text-sm text-text">{selectedProblem.sample_input}</pre>
                   </div>
                 )}
                 {selectedProblem.sample_output && (
                   <div className="rounded-lg border border-white/[0.06] bg-void/40 p-3">
                     <p className="font-mono text-[10px] text-dormant uppercase mb-1">Expected Output</p>
-                    <pre className="font-mono text-sm text-signal">{selectedProblem.sample_output}</pre>
+                    <pre className="font-mono text-xs sm:text-sm text-signal">{selectedProblem.sample_output}</pre>
                   </div>
                 )}
               </div>
@@ -211,7 +208,7 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
                 <select
                   value={language}
                   onChange={e => setLanguage(e.target.value)}
-                  className="rounded-lg border border-white/[0.08] bg-void/60 px-3 py-1.5 text-text font-mono text-xs focus:outline-none"
+                  className="rounded-lg border border-white/[0.08] bg-void/60 px-3 py-1.5 text-text font-mono text-xs focus:outline-none min-h-[36px]"
                 >
                   {LANGUAGES.map(l => (
                     <option key={l.value} value={l.value} className="bg-void">{l.label}</option>
@@ -221,25 +218,25 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
               <textarea
                 value={code}
                 onChange={e => setCode(e.target.value)}
-                rows={16}
+                rows={14}
                 placeholder={`Write your ${language} solution here...`}
-                className="w-full rounded-lg border border-white/[0.08] bg-void/60 px-4 py-3 text-text font-mono text-sm focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal/30 resize-y transition-all duration-300"
+                className="w-full rounded-lg border border-white/[0.08] bg-void/60 px-3 sm:px-4 py-3 text-text font-mono text-sm focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal/30 resize-y transition-all duration-300"
                 spellCheck={false}
               />
 
               {/* Submit */}
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <button
                   onClick={submitCode}
                   disabled={submitting || !code.trim()}
-                  className="btn-cyber px-6 py-3 rounded-lg text-xs uppercase tracking-wider flex items-center gap-2 disabled:opacity-40"
+                  className="min-h-[44px] btn-cyber px-6 py-2.5 rounded-lg text-xs uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-40 w-full sm:w-auto"
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                   Submit Solution
                 </button>
 
                 {submitResult && (
-                  <div className={`rounded-lg border px-4 py-2 text-sm font-mono ${
+                  <div className={`rounded-lg border px-4 py-2 text-xs sm:text-sm font-mono ${
                     submitResult.passed
                       ? 'border-signal/30 bg-signal/5 text-signal'
                       : 'border-danger/30 bg-danger/5 text-danger'

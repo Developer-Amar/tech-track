@@ -18,21 +18,33 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  const { count: totalUsers } = await admin.from("users").select("id", { count: "exact", head: true });
-  const { count: profileComplete } = await admin.from("users").select("id", { count: "exact", head: true }).eq("profile_completed", true);
-  const { count: totalUnits } = await admin.from("units").select("id", { count: "exact", head: true });
-  const { count: lockedUnits } = await admin.from("units").select("id", { count: "exact", head: true }).eq("locked", true);
-  const { count: teamUnits } = await admin.from("units").select("id", { count: "exact", head: true }).eq("unit_type", "team");
-  const { count: totalSubmissions } = await admin.from("submissions").select("id", { count: "exact", head: true });
-  const { count: passedSubmissions } = await admin.from("submissions").select("id", { count: "exact", head: true }).eq("passed", true);
-  const { count: pendingInvites } = await admin.from("unit_members").select("id", { count: "exact", head: true }).eq("status", "pending");
+  const [
+    { count: totalUsers },
+    { count: profileComplete },
+    { count: totalUnits },
+    { count: lockedUnits },
+    { count: teamUnits },
+    { count: totalSubmissions },
+    { count: passedSubmissions },
+    { count: pendingInvites },
+    { data: progressData },
+    { data: settings },
+  ] = await Promise.all([
+    admin.from("users").select("id", { count: "exact", head: true }),
+    admin.from("users").select("id", { count: "exact", head: true }).eq("profile_completed", true),
+    admin.from("units").select("id", { count: "exact", head: true }),
+    admin.from("units").select("id", { count: "exact", head: true }).eq("locked", true),
+    admin.from("units").select("id", { count: "exact", head: true }).eq("unit_type", "team"),
+    admin.from("submissions").select("id", { count: "exact", head: true }),
+    admin.from("submissions").select("id", { count: "exact", head: true }).eq("passed", true),
+    admin.from("unit_members").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    admin.from("round_progress").select("checkpoint_id, status"),
+    admin.from("event_settings").select("*").eq("id", 1).maybeSingle(),
+  ]);
 
   // Round completion breakdown
-  const { data: progressData } = await admin.from("round_progress").select("checkpoint_id, status");
   const roundsPassed = (progressData ?? []).filter(p => p.status === "passed").length;
   const roundsInProgress = (progressData ?? []).filter(p => p.status === "pending").length;
-
-  const { data: settings } = await admin.from("event_settings").select("*").eq("id", 1).single();
 
   return NextResponse.json({
     users: { total: totalUsers ?? 0, profile_complete: profileComplete ?? 0 },

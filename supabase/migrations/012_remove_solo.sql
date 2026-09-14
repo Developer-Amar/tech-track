@@ -26,7 +26,6 @@ SET search_path = public
 AS $$
 DECLARE
   abandoned_unit RECORD;
-  cp RECORD;
 BEGIN
   -- Guard: only run once
   IF NOT (SELECT registration_open FROM public.event_settings WHERE id = 1) THEN
@@ -70,13 +69,12 @@ BEGIN
   WHERE id = 1;
 
   -- 5. Generate verification codes for each (unit × checkpoint) pair
-  FOR cp IN SELECT id FROM public.checkpoints LOOP
-    INSERT INTO public.unit_checkpoint_codes (unit_id, checkpoint_id, secret_code)
-    SELECT u.id, cp.id, public.generate_readable_code()
-    FROM public.units u
-    WHERE u.disqualified = false
-    ON CONFLICT (unit_id, checkpoint_id) DO NOTHING;
-  END LOOP;
+  INSERT INTO public.unit_checkpoint_codes (unit_id, checkpoint_id, secret_code)
+  SELECT u.id, c.id, encode(gen_random_bytes(4), 'hex')
+  FROM public.units u
+  CROSS JOIN public.checkpoints c
+  WHERE u.disqualified = false
+  ON CONFLICT (unit_id, checkpoint_id) DO NOTHING;
 END;
 $$;
 

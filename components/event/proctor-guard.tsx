@@ -82,6 +82,7 @@ export default function ProctorGuard({
   const [limit, setLimit] = useState(3);
   const [lockedOut, setLockedOut] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [unitId, setUnitId] = useState<string | null>(null);
   const [activeDeviceBlocked, setActiveDeviceBlocked] = useState(false);
   const [activeUserName, setActiveUserName] = useState<string | null>(null);
@@ -102,7 +103,8 @@ export default function ProctorGuard({
   const supabase = createClient();
 
   // ── Initial setup & Single Device Registration ──────────────────────────
-  useEffect(() => {
+  const registerDevice = useCallback(() => {
+    setLoadError(false);
     fetch(`/api/event/proctor/report`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -112,7 +114,10 @@ export default function ProctorGuard({
         session_token: sessionTokenRef.current,
       }),
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to register proctor session");
+        return r.json();
+      })
       .then((data) => {
         if (data.active_device_blocked) {
           setActiveDeviceBlocked(true);
@@ -128,8 +133,16 @@ export default function ProctorGuard({
           if (data.locked_out) onLockout();
         }
         setLoaded(true);
+      })
+      .catch((err) => {
+        console.error("Proctor registration error:", err);
+        setLoadError(true);
       });
   }, [round, onLockout]);
+
+  useEffect(() => {
+    registerDevice();
+  }, [registerDevice]);
 
   // Heartbeat every 20s to keep device session active
   useEffect(() => {
@@ -226,6 +239,22 @@ export default function ProctorGuard({
   // ── 3. DevTools Detection ───────────────────────────────────────────────
   useEffect(() => {
     const checkDevTools = () => {
+      // Bypass on mobile/touch screens or when active form inputs are focused
+      // (virtual keyboards shrink innerHeight by 250-400px without altering outerHeight)
+      const isTouchDevice =
+        typeof window !== "undefined" &&
+        ("ontouchstart" in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
+      if (isTouchDevice) return;
+
+      const activeEl = document.activeElement;
+      const isInputFocused =
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.getAttribute("contenteditable") === "true" ||
+          activeEl.classList.contains("monaco-editor"));
+      if (isInputFocused) return;
+
       const threshold = 160;
       const widthThreshold = window.outerWidth - window.innerWidth > threshold;
       const heightThreshold = window.outerHeight - window.innerHeight > threshold;
@@ -350,6 +379,22 @@ export default function ProctorGuard({
 
     return () => clearInterval(interval);
   }, [lockedOut, round]);
+
+  if (loadError && !loaded) {
+    return (
+      <div className="glass-panel border border-red-500/40 p-6 text-center my-6">
+        <div className="text-red-400 font-mono text-sm uppercase mb-3">
+          [CONNECTION ERROR]: Unable to initialize secure proctored session.
+        </div>
+        <button
+          onClick={registerDevice}
+          className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-200 text-xs font-mono uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+        >
+          Retry Connection
+        </button>
+      </div>
+    );
+  }
 
   if (!loaded) return null;
 
