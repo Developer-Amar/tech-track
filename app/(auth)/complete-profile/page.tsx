@@ -13,7 +13,7 @@ export default async function CompleteProfilePage() {
   // If profile is already complete, skip straight to dashboard
   const { data: profile } = await supabase
     .from("users")
-    .select("profile_completed, name, email")
+    .select("profile_completed, name, email, avatar_url")
     .eq("id", user.id)
     .single();
 
@@ -25,7 +25,7 @@ export default async function CompleteProfilePage() {
     <ProfileTerminal
       name={profile?.name ?? user.user_metadata?.full_name ?? ""}
       email={profile?.email ?? user.email ?? ""}
-      avatarUrl={user.user_metadata?.avatar_url ?? ""}
+      avatarUrl={profile?.avatar_url ?? user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? ""}
     />
   );
 }

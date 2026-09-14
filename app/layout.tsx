@@ -12,6 +12,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  referrer: "no-referrer",
   title: "Tech Trek — IEI × IETE, Chitkara University",
   description:
     "A live campus-wide technical treasure hunt presented by IEI & IETE Student Chapters, Chitkara University. Solve riddles, trek to checkpoints, and crack coding challenges — all on one platform.",

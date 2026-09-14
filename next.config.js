@@ -5,7 +5,7 @@ const cspHeader = [
   "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
-  "img-src 'self' data: blob: https://*.googleusercontent.com https://*.supabase.co",
+  "img-src 'self' data: blob: https://*.googleusercontent.com https://googleusercontent.com https://*.google.com https://google.com https://*.supabase.co",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://judge0-ce.p.rapidapi.com https://*.rapidapi.com https://cdn.jsdelivr.net",
   "worker-src 'self' blob:",
   "media-src 'self' blob: data:",
@@ -37,6 +37,8 @@ const nextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
       { protocol: "https", hostname: "*.googleusercontent.com" },
+      { protocol: "https", hostname: "googleusercontent.com" },
+      { protocol: "https", hostname: "*.google.com" },
       { protocol: "https", hostname: "*.supabase.co" },
     ],
   },
@@ -45,7 +47,7 @@ const nextConfig = {
       source: "/:path*",
       headers: [
         { key: "Content-Security-Policy", value: cspHeader },
-        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "Referrer-Policy", value: "no-referrer" },
         { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), browsing-topics=()" },
         { key: "X-DNS-Prefetch-Control", value: "on" },
         { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },

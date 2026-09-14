@@ -1,5 +1,5 @@
 /* Tech Trek 2.0 PWA Service Worker */
-const CACHE_NAME = 'tech-trek-cache-v1';
+const CACHE_NAME = 'tech-trek-cache-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -35,6 +35,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // 0. Only intercept same-origin requests; allow external CDNs (e.g. Google avatars, fonts) to be handled natively
+  if (url.origin !== self.location.origin) {
+    return;
+  }
 
   // 1. Never cache API routes, auth callbacks, or POST/DELETE/PUT mutations (strictly live)
   if (

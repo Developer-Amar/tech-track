@@ -12,6 +12,7 @@ import DownloadablePass from "@/components/downloadable-pass";
 import JoinRequestsPanel from "@/components/join-requests-panel";
 import LeaderTeamControls from "@/components/leader-team-controls";
 import AnnouncementsModal from "@/components/announcements-modal";
+import UserAvatar from "@/components/user-avatar";
 import { User, Activity, AlertCircle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -200,20 +201,7 @@ export default async function DashboardPage() {
           {/* User profile card */}
           <BentoCard className="md:col-span-12 p-5 sm:p-6 md:p-8 flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 sm:gap-6 min-w-0" delay={0.2} glowColor="purple">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/40 border border-[#00E5FF]/30 shadow-[0_0_20px_rgba(125,249,255,0.15)] relative overflow-hidden group shrink-0">
-              {profile.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.avatar_url}
-                  alt={profile.name}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover relative z-10"
-                />
-              ) : (
-                <>
-                  <div className="absolute inset-0 bg-[#00E5FF]/10 group-hover:bg-[#00E5FF]/20 transition-colors duration-300" />
-                  <User className="w-8 h-8 text-[#00E5FF] relative z-10" />
-                </>
-              )}
+              <UserAvatar src={profile.avatar_url} alt={profile.name} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-mono text-[10px] text-muted uppercase tracking-[0.2em] font-semibold">PARTICIPANT PROFILE</p>

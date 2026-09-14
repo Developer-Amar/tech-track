@@ -97,7 +97,7 @@ export async function POST(request: Request) {
         semester: semester!,
         profile_completed: true,
         pass_code: passCode,
-        avatar_url: user.user_metadata?.avatar_url ?? null,
+        avatar_url: user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? null,
         role: userRole,
         updated_at: new Date().toISOString(),
       },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useMemo, useState } from "react";
+import { useRef, useCallback, useMemo, useState, useEffect } from "react";
 import StyledQR from "./styled-qr";
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -44,7 +44,29 @@ export default function HolographicPass({
 }: HolographicPassProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const [avatarSrc, setAvatarSrc] = useState(avatarUrl);
+  const [hasTriedProxy, setHasTriedProxy] = useState(false);
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setAvatarSrc(avatarUrl);
+    setHasTriedProxy(false);
+    setImgError(false);
+  }, [avatarUrl]);
+
+  const handleAvatarError = useCallback(() => {
+    if (
+      !hasTriedProxy &&
+      avatarUrl &&
+      !avatarUrl.startsWith("/api/avatar") &&
+      (avatarUrl.includes("googleusercontent.com") || avatarUrl.includes("google.com"))
+    ) {
+      setHasTriedProxy(true);
+      setAvatarSrc(`/api/avatar?url=${encodeURIComponent(avatarUrl)}`);
+    } else {
+      setImgError(true);
+    }
+  }, [avatarUrl, hasTriedProxy]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -137,7 +159,7 @@ export default function HolographicPass({
     .filter(Boolean)
     .join(" ");
 
-  const showAvatar = avatarUrl && !imgError;
+  const showAvatar = avatarSrc && !imgError;
   const initials = name
     ? name
         .split(" ")
@@ -325,10 +347,10 @@ export default function HolographicPass({
                 {showAvatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={avatarUrl}
+                    src={avatarSrc}
                     alt={name}
                     referrerPolicy="no-referrer"
-                    onError={() => setImgError(true)}
+                    onError={handleAvatarError}
                     style={{
                       width: "52px",
                       height: "52px",

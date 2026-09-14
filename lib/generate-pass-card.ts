@@ -19,7 +19,7 @@ export interface GeneratePassOptions {
  * Safely loads an image without throwing a fatal CORS exception.
  * If cross-origin loading is blocked, resolves to null so initials fallback can be used.
  */
-function safelyLoadImage(url: string): Promise<HTMLImageElement | null> {
+function safelyLoadImage(url: string, retryWithProxy = true): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     if (!url) {
       resolve(null);
@@ -28,9 +28,20 @@ function safelyLoadImage(url: string): Promise<HTMLImageElement | null> {
 
     const img = new Image();
     img.crossOrigin = "anonymous";
+    img.referrerPolicy = "no-referrer";
     img.onload = () => resolve(img);
-    img.onerror = () => {
-      // CORS blocked or image unreachable
+    img.onerror = async () => {
+      // If direct CDN loading fails, attempt fallback via server-side avatar proxy
+      if (
+        retryWithProxy &&
+        !url.startsWith("/api/avatar") &&
+        (url.includes("googleusercontent.com") || url.includes("google.com"))
+      ) {
+        const proxyUrl = `/api/avatar?url=${encodeURIComponent(url)}`;
+        const fallbackImg = await safelyLoadImage(proxyUrl, false);
+        resolve(fallbackImg);
+        return;
+      }
       resolve(null);
     };
     img.src = url;
