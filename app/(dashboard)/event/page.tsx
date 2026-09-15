@@ -11,6 +11,7 @@ import Leaderboard from "@/components/event/leaderboard";
 import Round2Arena from "@/components/event/round-2-arena";
 import AnnouncementsBar from "@/components/event/announcements-bar";
 import AnnouncementsModal from "@/components/announcements-modal";
+import EventHoldingBay from "@/components/event-holding-bay";
 import SignOutButton from "@/components/sign-out-button";
 import BentoCard from "@/components/bento-card";
 import KineticText from "@/components/kinetic-text";
@@ -53,16 +54,27 @@ export default async function EventPage({
 
   const { data: unit } = await admin
     .from("units")
-    .select("id, name, unit_type, locked, disqualified")
+    .select("id, name, unit_type, locked, disqualified, payment_status, leader_id, payment_utr")
     .eq("id", membership.unit_id)
     .single();
 
-  // Event settings — including round management columns
+  if (!unit) {
+    redirect("/dashboard");
+  }
+
+  // Event settings — including round management columns and payment gating
   const { data: settings } = await admin
     .from("event_settings")
-    .select("event_live, total_rounds, current_round_phase, round_1_stopped, round_2_active, round_2_stopped")
+    .select("event_live, total_rounds, current_round_phase, round_1_stopped, round_2_active, round_2_stopped, require_payment_for_event, payment_upi_id, payment_payee_name, payment_deadline")
     .eq("id", 1)
     .single();
+
+  const isPaymentRequired = settings?.require_payment_for_event ?? true;
+  const isPaymentCleared = unit?.payment_status === "verified";
+  const showHoldingBay =
+    !["admin", "super_admin"].includes(profile.role) &&
+    isPaymentRequired &&
+    !isPaymentCleared;
 
   const totalRounds = settings?.total_rounds ?? 10;
   const roundPhase = settings?.current_round_phase ?? 1;
@@ -239,6 +251,9 @@ export default async function EventPage({
 
           {/* Arena Content */}
           {!showLeaderboard && !unit?.disqualified && (
+            showHoldingBay ? (
+              <EventHoldingBay unit={unit} settings={settings || {}} currentUserId={user.id} />
+            ) : (
             <div className="space-y-6">
               {/* Round 2 Arena for qualified teams */}
               {showRound2Arena ? (
@@ -300,6 +315,7 @@ export default async function EventPage({
                 <EventWaiting />
               )}
             </div>
+            )
           )}
         </div>
       </div>

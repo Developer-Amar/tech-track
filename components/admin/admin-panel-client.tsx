@@ -12,6 +12,7 @@ import CheckpointCodesPanel from "@/components/checkpoint-codes-panel";
 import SubmissionsTable from "@/components/admin/submissions-table";
 import AuditLog from "@/components/admin/audit-log";
 import SettingsPanel from "@/components/admin/settings-panel";
+import PaymentsPanel from "@/components/admin/payments-panel";
 import SignOutButton from "@/components/sign-out-button";
 import BentoCard from "@/components/bento-card";
 import KineticText from "@/components/kinetic-text";
@@ -95,6 +96,7 @@ export default function AdminPanelClient({
           {activeTab === "leaderboard" && <AdminLiveLeaderboard />}
           {activeTab === "users" && <UsersTable isSuperAdmin={isSuperAdmin} />}
           {activeTab === "units" && <UnitsTable isSuperAdmin={isSuperAdmin} />}
+          {activeTab === "payments" && <PaymentsPanel isSuperAdmin={isSuperAdmin} />}
           {activeTab === "rounds" && isSuperAdmin && <RoundQualifierPanel />}
           {activeTab === "content" && isSuperAdmin && <ContentWrapper />}
           {activeTab === "codes" && <CheckpointCodesPanel />}

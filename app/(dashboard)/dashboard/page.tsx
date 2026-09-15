@@ -13,6 +13,7 @@ import JoinRequestsPanel from "@/components/join-requests-panel";
 import LeaderTeamControls from "@/components/leader-team-controls";
 import AnnouncementsModal from "@/components/announcements-modal";
 import UserAvatar from "@/components/user-avatar";
+import PaymentPortal from "@/components/payment-portal";
 import { User, Activity, AlertCircle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -252,6 +253,9 @@ export default async function DashboardPage() {
                 </p>
               </BentoCard>
             )}
+
+            {/* Operational Clearance & Payment Portal */}
+            <PaymentPortal />
 
             {/* Event active/inactive portal link */}
             {Boolean(

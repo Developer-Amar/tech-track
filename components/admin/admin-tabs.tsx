@@ -14,6 +14,7 @@ export default function AdminTabs({
     { key: "leaderboard", label: "Live Leaderboard" },
     { key: "users", label: "Users" },
     { key: "units", label: "Teams" },
+    { key: "payments", label: "Payments" },
     { key: "rounds", label: "Rounds", superOnly: true },
     { key: "content", label: "Content", superOnly: true },
     { key: "codes", label: "Codes" },
