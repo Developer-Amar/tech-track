@@ -60,7 +60,7 @@ export async function GET() {
       .from("unit_members")
       .select(`
         user_id,
-        users:user_id (id, name, email, avatar_url)
+        users:user_id (id, name, email, avatar_url, roll_no, mobile_number, branch)
       `)
       .eq("unit_id", unit.id)
       .eq("status", "accepted");
@@ -70,6 +70,9 @@ export async function GET() {
       name: m.users?.name || "Team Member",
       email: m.users?.email || "",
       avatar_url: m.users?.avatar_url || null,
+      roll_no: m.users?.roll_no || null,
+      mobile_number: m.users?.mobile_number || null,
+      branch: m.users?.branch || null,
       isLeader: m.users?.id === unit.leader_id
     }));
 

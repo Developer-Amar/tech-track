@@ -19,7 +19,8 @@ import {
   Users,
   ChevronDown,
   ChevronUp,
-  FileText
+  FileText,
+  UserCheck
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -43,9 +44,9 @@ interface PaymentInfo {
     email: string;
     avatar_url: string | null;
     isLeader: boolean;
-    roll_no?: string;
-    mobile_number?: string;
-    branch?: string;
+    roll_no?: string | null;
+    mobile_number?: string | null;
+    branch?: string | null;
   }>;
   memberCount: number;
   requiredAmount: number;
@@ -70,11 +71,10 @@ export default function PaymentPortal({
   const [loading, setLoading] = useState(!initialData);
   const [txnInput, setTxnInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [initiatingChitkara, setInitiatingChitkara] = useState(false);
   const [copiedSheet, setCopiedSheet] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [showManualHelper, setShowManualHelper] = useState(false);
 
   const fetchPaymentInfo = useCallback(async () => {
     try {
@@ -149,48 +149,13 @@ export default function PaymentPortal({
   }, [data?.unit?.id, onClearanceGranted]);
 
   /**
-   * Express 1-Click Pay:
-   * Calls /api/payment/chitkara/relay which pre-fills the Chitkara PHP server,
-   * extracts the encrypted ICICI EazyPay form parameters, and auto-submits to the bank!
+   * Copy individual field
    */
-  const handleExpressChitkaraPay = async () => {
-    setErrorMsg(null);
-    setInitiatingChitkara(true);
-
-    try {
-      const res = await fetch("/api/payment/chitkara/relay", {
-        method: "POST"
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to initialize official Chitkara payment gateway.");
-      }
-
-      // Hand off the pre-registered token directly to Chitkara's official request.php
-      // This ensures the browser arrives at paym.chitkara.edu.in first, and Chitkara itself
-      // performs the native same-origin submission to ICICI Bank without cross-origin blocking!
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = json.chitkaraRequestUrl || "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/request.php";
-      form.target = "_blank"; // Opens Chitkara University official processor in a fresh tab
-
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = "idA";
-      input.value = json.registrationToken;
-      form.appendChild(input);
-
-      document.body.appendChild(form);
-      form.submit();
-      document.body.removeChild(form);
-
-      setSuccessMsg("Chitkara ICICI Bank Gateway opened in a new tab! Complete payment and paste your Transaction ID below.");
-    } catch (err: any) {
-      setErrorMsg(err.message || "Could not launch Chitkara payment relay. Please try again or use the manual fallback link.");
-    } finally {
-      setInitiatingChitkara(false);
-    }
+  const handleCopyField = (val: string, key: string) => {
+    if (!val) return;
+    navigator.clipboard.writeText(val);
+    setCopiedField(key);
+    setTimeout(() => setCopiedField(null), 1800);
   };
 
   /**
@@ -235,17 +200,24 @@ export default function PaymentPortal({
   };
 
   /**
-   * Copy formatted team details sheet for manual fallback
+   * Copy formatted team details sheet for Chitkara form
    */
   const handleCopyTeamSheet = () => {
     if (!data) return;
     const lines = [
-      `=== TECH TREK TEAM PAYMENT SHEET ===`,
+      `=== TECH TREK TEAM REGISTRATION SHEET ===`,
       `Team Name: ${data.unit.name}`,
-      `Members Count: ${data.memberCount}`,
-      `Registration Amount: Rs. ${data.requiredAmount}`,
-      `------------------------------------`,
-      ...data.members.map((m, idx) => `Member ${idx + 1}: ${m.name} | Roll: ${m.roll_no || "N/A"} | Phone: ${m.mobile_number || "N/A"} | Email: ${m.email}`)
+      `Total Members: ${data.memberCount}`,
+      `Registration Fee: Rs. ${data.requiredAmount}`,
+      `-----------------------------------------`,
+      ...data.members.map((m, idx) =>
+        `Member ${idx + 1} (${m.isLeader ? "LEADER" : "MEMBER"}):\n` +
+        `  Name: ${m.name}\n` +
+        `  Roll No: ${m.roll_no || "N/A"}\n` +
+        `  Email: ${m.email}\n` +
+        `  Contact No: ${m.mobile_number || "N/A"}\n` +
+        (m.isLeader ? `  Department: ${m.branch || "ECE"}\n` : "")
+      )
     ];
     navigator.clipboard.writeText(lines.join("\n"));
     setCopiedSheet(true);
@@ -277,7 +249,11 @@ export default function PaymentPortal({
 
   const { unit, members, memberCount, requiredAmount, isLeader } = data;
   const status = unit.payment_status;
-  const chitkaraUrl = "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/";
+  const chitkaraUrl = data.settings.chitkara_portal_url || "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/";
+
+  // Sort members so leader is always #1
+  const sortedMembers = [...members].sort((a, b) => (b.isLeader ? 1 : 0) - (a.isLeader ? 1 : 0));
+  const leaderMember = sortedMembers[0];
 
   return (
     <div className="w-full bg-[#080B11]/90 rounded-3xl border border-cyan-500/20 shadow-[0_0_50px_rgba(0,229,255,0.06)] backdrop-blur-2xl overflow-hidden p-6 md:p-8">
@@ -297,19 +273,19 @@ export default function PaymentPortal({
             Official Event Payment Clearance
           </h2>
           <p className="text-xs md:text-sm text-slate-400 mt-1">
-            All registration fees are collected securely through the official{" "}
-            <span className="text-white font-semibold">Chitkara University ICICI EazyPay Portal</span>.
+            All registration fees must be completed through the official{" "}
+            <strong className="text-white">Chitkara University Online Events Portal</strong>.
           </p>
         </div>
 
-        {/* ── Status Pill ──────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3">
+        {/* Live Status Badge */}
+        <div className="flex items-center gap-3 shrink-0">
           {status === "verified" && (
             <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-              <ShieldCheck className="w-5 h-5 text-emerald-400 animate-pulse" />
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
               <div className="text-left">
                 <div className="text-[10px] font-mono uppercase tracking-widest text-emerald-300/70">Clearance Status</div>
-                <div className="text-sm font-black font-mono tracking-wider">VERIFIED // CLEARED</div>
+                <div className="text-sm font-black font-mono tracking-wider">CLEARED // LICENSED</div>
               </div>
             </div>
           )}
@@ -406,139 +382,204 @@ export default function PaymentPortal({
       {/* ── Main Interactive Flow (When Not Verified) ─────────────────── */}
       {status !== "verified" && (
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* ── Left Column: Express 1-Click Pay Hero Card (6 Cols) ─────── */}
-          <div className="lg:col-span-6 flex flex-col bg-[#0d121c] p-6 rounded-2xl border border-rose-500/20 relative">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-[10px] font-mono px-2.5 py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3" />
-                EXPRESS 1-CLICK PAY
-              </span>
-              <span className="text-xs font-mono text-slate-400 font-bold">
-                ₹{requiredAmount} TOTAL
-              </span>
-            </div>
+          {/* ── Left Column: Portal Launcher + Quick-Copy Roster (7 Cols) ─── */}
+          <div className="lg:col-span-7 flex flex-col gap-6">
+            {/* 1. Official Portal Launcher Card */}
+            <div className="bg-[#0d121c] p-6 rounded-2xl border border-rose-500/20 relative overflow-hidden">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-mono px-2.5 py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" />
+                  STEP 1: UNIVERSITY CHECKOUT
+                </span>
+                <span className="text-xs font-mono text-rose-400 font-bold">
+                  ₹{requiredAmount} TOTAL FEE
+                </span>
+              </div>
 
-            <h3 className="text-lg font-bold text-white mb-2">
-              Chitkara University Online Gateway
-            </h3>
-            <p className="text-xs text-slate-400 leading-relaxed mb-6">
-              Our automated relay will pre-register all {memberCount} members of <strong className="text-white">{unit.name}</strong> directly into Chitkara University&apos;s database and take you straight to the official ICICI Bank EazyPay gateway (UPI, QR, Cards, NetBanking).
-            </p>
+              <h3 className="text-lg font-bold text-white mb-2">
+                Chitkara University Official Portal
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed mb-5">
+                Click below to open the official Chitkara ECE Club portal in a new tab. Select <strong className="text-white">{memberCount} Members</strong>, use the quick-copy buttons below to fill in your team details, and pay via UPI, Card, or NetBanking.
+              </p>
 
-            {/* Team Breakdown Summary */}
-            <div className="bg-black/50 p-4 rounded-xl border border-white/5 space-y-2 mb-6 text-xs font-mono">
-              <div className="flex justify-between text-slate-400">
-                <span>Team Name:</span>
-                <span className="text-white font-bold">{unit.name}</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Member Roster:</span>
-                <span className="text-cyan-400">{memberCount} Members ({members.map(m => m.name.split(" ")[0]).join(", ")})</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Fee Schedule:</span>
-                <span className="text-slate-300">₹50 × {memberCount}</span>
-              </div>
-              <div className="pt-2 border-t border-white/5 flex justify-between items-center text-sm font-bold">
-                <span className="text-white">Amount Due:</span>
-                <span className="text-rose-400 text-lg font-black">₹{requiredAmount}/-</span>
-              </div>
-            </div>
-
-            {/* Primary Action Button (Leader Only) */}
-            {isLeader ? (
-              <button
-                type="button"
-                onClick={handleExpressChitkaraPay}
-                disabled={initiatingChitkara}
-                className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 hover:from-rose-500 hover:to-red-500 disabled:opacity-50 text-white font-black text-xs font-mono uppercase tracking-wider transition-all shadow-[0_0_25px_rgba(225,29,72,0.3)] flex items-center justify-center gap-2 group"
-              >
-                {initiatingChitkara ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Connecting to Chitkara Gateway...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>Pay ₹{requiredAmount} via Official Chitkara Gateway</span>
+              {/* Direct Instant Action Button (Leader Only) */}
+              {isLeader ? (
+                <div className="space-y-3">
+                  <a
+                    href={chitkaraUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 hover:from-rose-500 hover:to-red-500 text-white font-black text-xs font-mono uppercase tracking-wider transition-all shadow-[0_0_25px_rgba(225,29,72,0.3)] flex items-center justify-center gap-2 group cursor-pointer"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Open Official Chitkara Portal (Pay ₹{requiredAmount})</span>
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                  </>
-                )}
-              </button>
-            ) : (
-              <div className="p-4 rounded-xl bg-black/40 border border-white/10 text-center text-xs text-slate-400 font-mono">
-                <Users className="w-6 h-6 text-slate-400 mx-auto mb-2" />
-                Only your designated Team Leader can trigger the Chitkara University payment checkout.
-              </div>
-            )}
+                  </a>
 
-            {/* Subtle Fallback Link for Edge Cases */}
-            <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
-              <span className="text-slate-500">Need to pay manually?</span>
-              <button
-                type="button"
-                onClick={() => setShowManualHelper(!showManualHelper)}
-                className="text-slate-400 hover:text-white underline transition-colors flex items-center gap-1"
-              >
-                <span>Manual Portal Options</span>
-                {showManualHelper ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyTeamSheet}
+                    className="w-full py-2.5 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-mono flex items-center justify-center gap-2 border border-cyan-500/30 transition-all"
+                  >
+                    {copiedSheet ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedSheet ? "Copied All Team Details to Clipboard!" : "📋 Copy Full Team Details Sheet"}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-black/40 border border-white/10 text-center text-xs text-slate-400 font-mono">
+                  <Users className="w-6 h-6 text-slate-400 mx-auto mb-2" />
+                  Only your designated Team Leader ({leaderMember?.name || "Leader"}) is authorized to complete the team payment.
+                </div>
+              )}
             </div>
 
-            {/* Collapsible Manual Fallback Drawer */}
-            <AnimatePresence>
-              {showManualHelper && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-3 p-3.5 rounded-xl bg-black/60 border border-white/10 text-xs space-y-3"
-                >
-                  <p className="text-slate-400 text-[11px]">
-                    If express checkout has issues with your browser, open the official Chitkara portal directly and use the copied details sheet:
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <a
-                      href={chitkaraUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-2 px-3 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-[11px] font-mono flex items-center justify-center gap-1.5 border border-white/10"
+            {/* 2. Quick-Fill Member Roster (1-Tap Copy Chips) */}
+            <div className="bg-[#0d121c] p-6 rounded-2xl border border-white/10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-cyan-400" />
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+                    Team Roster Quick-Fill Helper
+                  </h4>
+                </div>
+                <span className="text-[10px] font-mono text-slate-500">
+                  Tap to copy any field
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {sortedMembers.map((m, idx) => {
+                  const isFirst = idx === 0;
+                  return (
+                    <div
+                      key={m.id}
+                      className="p-4 rounded-xl bg-black/50 border border-white/5 space-y-2.5"
                     >
-                      <span>Open Chitkara Form</span>
-                      <ExternalLink className="w-3 h-3 text-cyan-400" />
-                    </a>
-                    <button
-                      type="button"
-                      onClick={handleCopyTeamSheet}
-                      className="flex-1 py-2 px-3 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-[11px] font-mono flex items-center justify-center gap-1.5 border border-cyan-500/30"
-                    >
-                      {copiedSheet ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedSheet ? "Copied to Clipboard!" : "Copy Team Details Sheet"}</span>
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                        <span className="text-xs font-bold text-white flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] font-mono">
+                            {idx + 1}
+                          </span>
+                          {m.name}
+                          {m.isLeader && (
+                            <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase font-bold">
+                              Leader
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-500">
+                          {isFirst ? "Chitkara: Personal Details" : `Chitkara: Member ${idx + 1}`}
+                        </span>
+                      </div>
+
+                      {/* Fields with individual copy chips */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                        {/* Roll Number */}
+                        <div
+                          onClick={() => handleCopyField(m.roll_no || "", `roll_${m.id}`)}
+                          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between cursor-pointer transition-colors group"
+                        >
+                          <span className="text-slate-400 text-[11px]">Roll:</span>
+                          <span className="text-white font-bold group-hover:text-cyan-400 flex items-center gap-1.5">
+                            {m.roll_no || "N/A"}
+                            {copiedField === `roll_${m.id}` ? (
+                              <Check className="w-3 h-3 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Phone Number */}
+                        <div
+                          onClick={() => handleCopyField(m.mobile_number || "", `phone_${m.id}`)}
+                          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between cursor-pointer transition-colors group"
+                        >
+                          <span className="text-slate-400 text-[11px]">Phone:</span>
+                          <span className="text-white font-bold group-hover:text-cyan-400 flex items-center gap-1.5">
+                            {m.mobile_number || "N/A"}
+                            {copiedField === `phone_${m.id}` ? (
+                              <Check className="w-3 h-3 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Email */}
+                        <div
+                          onClick={() => handleCopyField(m.email, `email_${m.id}`)}
+                          className="sm:col-span-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between cursor-pointer transition-colors group"
+                        >
+                          <span className="text-slate-400 text-[11px]">Email:</span>
+                          <span className="text-white font-bold group-hover:text-cyan-400 truncate ml-2 flex items-center gap-1.5">
+                            <span className="truncate">{m.email}</span>
+                            {copiedField === `email_${m.id}` ? (
+                              <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                            ) : (
+                              <Copy className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 shrink-0" />
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Department (If Leader) */}
+                        {isFirst && (
+                          <div
+                            onClick={() => handleCopyField(m.branch || "ECE", `dept_${m.id}`)}
+                            className="sm:col-span-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between cursor-pointer transition-colors group"
+                          >
+                            <span className="text-slate-400 text-[11px]">Department:</span>
+                            <span className="text-white font-bold group-hover:text-cyan-400 flex items-center gap-1.5">
+                              {m.branch || "ECE"}
+                              {copiedField === `dept_${m.id}` ? (
+                                <Check className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
+                              )}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* ── Right Column: Chitkara Transaction ID Submission (6 Cols) ── */}
-          <div className="lg:col-span-6 flex flex-col justify-between">
+          {/* ── Right Column: Chitkara Transaction ID Submission (5 Cols) ── */}
+          <div className="lg:col-span-5 flex flex-col justify-between">
             <div className="bg-[#0d121c] p-6 rounded-2xl border border-cyan-500/20 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-mono uppercase tracking-wider text-cyan-400 flex items-center gap-2">
                   <FileText className="w-4 h-4" />
-                  <span>Chitkara Payment Verification</span>
+                  <span>Submit Payment Proof</span>
                 </h3>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
                   STEP 2 OF 2
                 </span>
               </div>
 
-              <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                After completing your payment on the Chitkara ICICI Bank portal, enter the{" "}
-                <strong className="text-white">Chitkara Transaction ID / ICICI Reference Number</strong> from your payment receipt or confirmation SMS.
-              </p>
+              {/* Instructions checklist */}
+              <div className="mb-5 space-y-2 text-xs text-slate-400 font-mono">
+                <div className="flex items-start gap-2">
+                  <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">1</span>
+                  <span>Open Chitkara Portal & select <strong>{memberCount} Members</strong>.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">2</span>
+                  <span>Fill member details using the 1-click copy chips.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">3</span>
+                  <span>Pay ₹{requiredAmount} on ICICI Bank via UPI / Cards / NetBanking.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">4</span>
+                  <span>Paste the <strong>Chitkara Transaction ID / Ref No</strong> below.</span>
+                </div>
+              </div>
 
               {isLeader ? (
                 <form onSubmit={handleSubmitReference} className="space-y-4">
@@ -575,7 +616,7 @@ export default function PaymentPortal({
                   <button
                     type="submit"
                     disabled={submitting || txnInput.trim().length < 6}
-                    className="w-full py-3.5 px-6 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:bg-slate-800 disabled:text-slate-500 text-black font-bold text-xs font-mono uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(0,229,255,0.2)] flex items-center justify-center gap-2"
+                    className="w-full py-3.5 px-6 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:bg-slate-800 disabled:text-slate-500 text-black font-bold text-xs font-mono uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(0,229,255,0.2)] flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {submitting ? (
                       <>
@@ -593,7 +634,7 @@ export default function PaymentPortal({
               ) : (
                 <div className="p-4 rounded-xl bg-black/40 border border-white/10 text-center font-mono text-xs text-slate-400">
                   <Clock className="w-5 h-5 text-cyan-400 mx-auto mb-2" />
-                  Your Team Leader ({members.find(m => m.isLeader)?.name || "Leader"}) is submitting transaction proof. Once confirmed by coordinators, your arena unlocks automatically!
+                  Your Team Leader ({leaderMember?.name || "Leader"}) is submitting transaction proof. Once confirmed by coordinators, your arena unlocks automatically!
                 </div>
               )}
             </div>
