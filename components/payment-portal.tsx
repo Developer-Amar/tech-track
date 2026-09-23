@@ -20,7 +20,8 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
-  UserCheck
+  UserCheck,
+  Zap
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -71,6 +72,7 @@ export default function PaymentPortal({
   const [loading, setLoading] = useState(!initialData);
   const [txnInput, setTxnInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showManualFallback, setShowManualFallback] = useState(false);
   const [copiedSheet, setCopiedSheet] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -102,6 +104,25 @@ export default function PaymentPortal({
       fetchPaymentInfo();
     }
   }, [initialData, fetchPaymentInfo]);
+
+  // Check URL params for checkout redirect errors
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const payErr = params.get("error") || params.get("payment_error");
+      if (payErr) {
+        if (payErr.includes("leader_only")) {
+          setErrorMsg("Only the designated Team Leader is authorized to initiate payment on the Chitkara portal.");
+        } else if (payErr.includes("min_members")) {
+          setErrorMsg("Your team must have at least 2 accepted members to complete payment.");
+        } else if (payErr.includes("chitkara_validation")) {
+          setErrorMsg(`University portal error: ${decodeURIComponent(payErr.replace("chitkara_validation_", ""))}`);
+        } else if (payErr.includes("server_unavailable")) {
+          setErrorMsg("Chitkara University payment server is temporarily busy. Please try again or use the manual fallback link.");
+        }
+      }
+    }
+  }, []);
 
   // Subscribe to real-time changes on unit payment status
   useEffect(() => {
@@ -249,7 +270,7 @@ export default function PaymentPortal({
 
   const { unit, members, memberCount, requiredAmount, isLeader } = data;
   const status = unit.payment_status;
-  const chitkaraUrl = data.settings.chitkara_portal_url || "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/";
+  const chitkaraManualUrl = data.settings.chitkara_portal_url || "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/";
 
   // Sort members so leader is always #1
   const sortedMembers = [...members].sort((a, b) => (b.isLeader ? 1 : 0) - (a.isLeader ? 1 : 0));
@@ -382,169 +403,212 @@ export default function PaymentPortal({
       {/* ── Main Interactive Flow (When Not Verified) ─────────────────── */}
       {status !== "verified" && (
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* ── Left Column: Portal Launcher + Quick-Copy Roster (7 Cols) ─── */}
+          {/* ── Left Column: Express 1-Click Pay Hero + Fallback Drawer (7 Cols) ─── */}
           <div className="lg:col-span-7 flex flex-col gap-6">
-            {/* 1. Official Portal Launcher Card */}
-            <div className="bg-[#0d121c] p-6 rounded-2xl border border-rose-500/20 relative overflow-hidden">
+            {/* 1. Official Express 1-Click Pay Hero Card */}
+            <div className="bg-[#0d121c] p-6 rounded-2xl border border-rose-500/20 relative overflow-hidden shadow-[0_0_30px_rgba(225,29,72,0.1)]">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[10px] font-mono px-2.5 py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 font-bold uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3" />
-                  STEP 1: UNIVERSITY CHECKOUT
+                  STEP 1: EXPRESS 1-CLICK PAY
                 </span>
                 <span className="text-xs font-mono text-rose-400 font-bold">
-                  ₹{requiredAmount} TOTAL FEE
+                  ₹{requiredAmount} TOTAL DUE
                 </span>
               </div>
 
-              <h3 className="text-lg font-bold text-white mb-2">
-                Chitkara University Official Portal
+              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                <span>Official Chitkara × ICICI Bank Gateway</span>
               </h3>
-              <p className="text-xs text-slate-400 leading-relaxed mb-5">
-                Click below to open the official Chitkara ECE Club portal in a new tab. Select <strong className="text-white">{memberCount} Members</strong>, use the quick-copy buttons below to fill in your team details, and pay via UPI, Card, or NetBanking.
+              <p className="text-xs text-slate-300 leading-relaxed mb-4">
+                <strong className="text-cyan-400">Zero form filling required!</strong> Click below to automatically register all <strong className="text-white">{memberCount} members</strong> of team <strong className="text-white">{unit.name}</strong> into the university database and land straight on the official ICICI Bank checkout screen.
               </p>
+
+              {/* Team Breakdown Summary Box */}
+              <div className="bg-black/50 p-4 rounded-xl border border-white/5 space-y-2 mb-5 text-xs font-mono">
+                <div className="flex justify-between text-slate-400">
+                  <span>Team Name:</span>
+                  <span className="text-white font-bold">{unit.name}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Roster ({memberCount} members):</span>
+                  <span className="text-cyan-300 font-bold">
+                    {members.map((m) => m.name.split(" ")[0]).join(", ")}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Fee Calculation:</span>
+                  <span className="text-slate-300">₹50 × {memberCount} members</span>
+                </div>
+                <div className="pt-2 border-t border-white/5 flex justify-between items-center text-sm font-bold">
+                  <span className="text-white">Amount to Pay:</span>
+                  <span className="text-rose-400 text-lg font-black font-mono">₹{requiredAmount}/-</span>
+                </div>
+              </div>
 
               {/* Direct Instant Action Button (Leader Only) */}
               {isLeader ? (
                 <div className="space-y-3">
                   <a
-                    href={chitkaraUrl}
+                    href="/api/payment/chitkara/checkout"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 hover:from-rose-500 hover:to-red-500 text-white font-black text-xs font-mono uppercase tracking-wider transition-all shadow-[0_0_25px_rgba(225,29,72,0.3)] flex items-center justify-center gap-2 group cursor-pointer"
                   >
-                    <ExternalLink className="w-4 h-4" />
-                    <span>Open Official Chitkara Portal (Pay ₹{requiredAmount})</span>
-                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    <Zap className="w-4 h-4 fill-white" />
+                    <span>Pay ₹{requiredAmount} via Official Chitkara Gateway (1-Click)</span>
+                    <ExternalLink className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-0.5" />
                   </a>
 
-                  <button
-                    type="button"
-                    onClick={handleCopyTeamSheet}
-                    className="w-full py-2.5 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-mono flex items-center justify-center gap-2 border border-cyan-500/30 transition-all"
-                  >
-                    {copiedSheet ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    <span>{copiedSheet ? "Copied All Team Details to Clipboard!" : "📋 Copy Full Team Details Sheet"}</span>
-                  </button>
+                  <p className="text-[11px] font-mono text-slate-400 text-center">
+                    ⚡ Opens in a new tab. Pay via BHIM UPI, QR Code, Google Pay, PhonePe, Cards, or NetBanking.
+                  </p>
                 </div>
               ) : (
                 <div className="p-4 rounded-xl bg-black/40 border border-white/10 text-center text-xs text-slate-400 font-mono">
                   <Users className="w-6 h-6 text-slate-400 mx-auto mb-2" />
-                  Only your designated Team Leader ({leaderMember?.name || "Leader"}) is authorized to complete the team payment.
+                  Only your designated Team Leader ({leaderMember?.name || "Leader"}) is authorized to initiate payment.
                 </div>
               )}
             </div>
 
-            {/* 2. Quick-Fill Member Roster (1-Tap Copy Chips) */}
-            <div className="bg-[#0d121c] p-6 rounded-2xl border border-white/10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-cyan-400" />
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-white">
-                    Team Roster Quick-Fill Helper
-                  </h4>
-                </div>
-                <span className="text-[10px] font-mono text-slate-500">
-                  Tap to copy any field
+            {/* 2. Collapsible Fallback Drawer: For Emergency Manual Entry */}
+            <div className="bg-[#0d121c] p-4 rounded-2xl border border-white/5">
+              <button
+                type="button"
+                onClick={() => setShowManualFallback(!showManualFallback)}
+                className="w-full flex items-center justify-between text-xs font-mono text-slate-400 hover:text-white transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Info className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Having trouble? Manual portal options & clipboard helper</span>
                 </span>
-              </div>
+                {showManualFallback ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
 
-              <div className="space-y-4">
-                {sortedMembers.map((m, idx) => {
-                  const isFirst = idx === 0;
-                  return (
-                    <div
-                      key={m.id}
-                      className="p-4 rounded-xl bg-black/50 border border-white/5 space-y-2.5"
-                    >
-                      <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                        <span className="text-xs font-bold text-white flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] font-mono">
-                            {idx + 1}
-                          </span>
-                          {m.name}
-                          {m.isLeader && (
-                            <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase font-bold">
-                              Leader
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-500">
-                          {isFirst ? "Chitkara: Personal Details" : `Chitkara: Member ${idx + 1}`}
-                        </span>
-                      </div>
+              <AnimatePresence>
+                {showManualFallback && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-4 pt-4 border-t border-white/5 space-y-4"
+                  >
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      If your browser has issues launching the 1-click gateway, open the blank Chitkara portal manually and use the copy helpers below:
+                    </p>
 
-                      {/* Fields with individual copy chips */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
-                        {/* Roll Number */}
-                        <div
-                          onClick={() => handleCopyField(m.roll_no || "", `roll_${m.id}`)}
-                          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between cursor-pointer transition-colors group"
-                        >
-                          <span className="text-slate-400 text-[11px]">Roll:</span>
-                          <span className="text-white font-bold group-hover:text-cyan-400 flex items-center gap-1.5">
-                            {m.roll_no || "N/A"}
-                            {copiedField === `roll_${m.id}` ? (
-                              <Check className="w-3 h-3 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
-                            )}
-                          </span>
-                        </div>
-
-                        {/* Phone Number */}
-                        <div
-                          onClick={() => handleCopyField(m.mobile_number || "", `phone_${m.id}`)}
-                          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between cursor-pointer transition-colors group"
-                        >
-                          <span className="text-slate-400 text-[11px]">Phone:</span>
-                          <span className="text-white font-bold group-hover:text-cyan-400 flex items-center gap-1.5">
-                            {m.mobile_number || "N/A"}
-                            {copiedField === `phone_${m.id}` ? (
-                              <Check className="w-3 h-3 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
-                            )}
-                          </span>
-                        </div>
-
-                        {/* Email */}
-                        <div
-                          onClick={() => handleCopyField(m.email, `email_${m.id}`)}
-                          className="sm:col-span-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between cursor-pointer transition-colors group"
-                        >
-                          <span className="text-slate-400 text-[11px]">Email:</span>
-                          <span className="text-white font-bold group-hover:text-cyan-400 truncate ml-2 flex items-center gap-1.5">
-                            <span className="truncate">{m.email}</span>
-                            {copiedField === `email_${m.id}` ? (
-                              <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-                            ) : (
-                              <Copy className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 shrink-0" />
-                            )}
-                          </span>
-                        </div>
-
-                        {/* Department (If Leader) */}
-                        {isFirst && (
-                          <div
-                            onClick={() => handleCopyField(m.branch || "ECE", `dept_${m.id}`)}
-                            className="sm:col-span-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between cursor-pointer transition-colors group"
-                          >
-                            <span className="text-slate-400 text-[11px]">Department:</span>
-                            <span className="text-white font-bold group-hover:text-cyan-400 flex items-center gap-1.5">
-                              {m.branch || "ECE"}
-                              {copiedField === `dept_${m.id}` ? (
-                                <Check className="w-3 h-3 text-emerald-400" />
-                              ) : (
-                                <Copy className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
-                              )}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <a
+                        href={chitkaraManualUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-mono flex items-center justify-center gap-2 border border-white/10 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Open Blank Chitkara Form</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={handleCopyTeamSheet}
+                        className="flex-1 py-2.5 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-mono flex items-center justify-center gap-2 border border-cyan-500/30 transition-all"
+                      >
+                        {copiedSheet ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedSheet ? "Copied to Clipboard!" : "📋 Copy Full Details Sheet"}</span>
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
+
+                    {/* Quick-Fill Member Roster Chips */}
+                    <div className="space-y-3 pt-2">
+                      <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider font-bold">
+                        Individual Field Quick-Copy Chips:
+                      </div>
+                      {sortedMembers.map((m, idx) => {
+                        const isFirst = idx === 0;
+                        return (
+                          <div
+                            key={m.id}
+                            className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-2"
+                          >
+                            <div className="flex items-center justify-between text-xs font-bold text-white">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] font-mono">
+                                  {idx + 1}
+                                </span>
+                                {m.name} {m.isLeader && "(Leader)"}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                              <div
+                                onClick={() => handleCopyField(m.roll_no || "", `roll_${m.id}`)}
+                                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-between cursor-pointer transition-colors"
+                              >
+                                <span className="text-slate-400 text-[11px]">Roll:</span>
+                                <span className="text-white font-bold flex items-center gap-1">
+                                  {m.roll_no || "N/A"}
+                                  {copiedField === `roll_${m.id}` ? (
+                                    <Check className="w-3 h-3 text-emerald-400" />
+                                  ) : (
+                                    <Copy className="w-3 h-3 text-slate-500" />
+                                  )}
+                                </span>
+                              </div>
+
+                              <div
+                                onClick={() => handleCopyField(m.mobile_number || "", `phone_${m.id}`)}
+                                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-between cursor-pointer transition-colors"
+                              >
+                                <span className="text-slate-400 text-[11px]">Phone:</span>
+                                <span className="text-white font-bold flex items-center gap-1">
+                                  {m.mobile_number || "N/A"}
+                                  {copiedField === `phone_${m.id}` ? (
+                                    <Check className="w-3 h-3 text-emerald-400" />
+                                  ) : (
+                                    <Copy className="w-3 h-3 text-slate-500" />
+                                  )}
+                                </span>
+                              </div>
+
+                              <div
+                                onClick={() => handleCopyField(m.email, `email_${m.id}`)}
+                                className="sm:col-span-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-between cursor-pointer transition-colors"
+                              >
+                                <span className="text-slate-400 text-[11px]">Email:</span>
+                                <span className="text-white font-bold truncate ml-2 flex items-center gap-1">
+                                  <span className="truncate">{m.email}</span>
+                                  {copiedField === `email_${m.id}` ? (
+                                    <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                                  ) : (
+                                    <Copy className="w-3 h-3 text-slate-500 shrink-0" />
+                                  )}
+                                </span>
+                              </div>
+
+                              {isFirst && (
+                                <div
+                                  onClick={() => handleCopyField(m.branch || "ECE", `dept_${m.id}`)}
+                                  className="sm:col-span-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-between cursor-pointer transition-colors"
+                                >
+                                  <span className="text-slate-400 text-[11px]">Dept:</span>
+                                  <span className="text-white font-bold flex items-center gap-1">
+                                    {m.branch || "ECE"}
+                                    {copiedField === `dept_${m.id}` ? (
+                                      <Check className="w-3 h-3 text-emerald-400" />
+                                    ) : (
+                                      <Copy className="w-3 h-3 text-slate-500" />
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -562,22 +626,22 @@ export default function PaymentPortal({
               </div>
 
               {/* Instructions checklist */}
-              <div className="mb-5 space-y-2 text-xs text-slate-400 font-mono">
-                <div className="flex items-start gap-2">
-                  <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">1</span>
-                  <span>Open Chitkara Portal & select <strong>{memberCount} Members</strong>.</span>
+              <div className="mb-5 space-y-2.5 text-xs text-slate-300 font-mono">
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</span>
+                  <span>Click <strong>1-Click Pay</strong> to launch official ICICI Bank Gateway.</span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">2</span>
-                  <span>Fill member details using the 1-click copy chips.</span>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
+                  <span>Complete ₹{requiredAmount} payment via UPI QR, GPay, PhonePe, Cards, or NetBanking.</span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">3</span>
-                  <span>Pay ₹{requiredAmount} on ICICI Bank via UPI / Cards / NetBanking.</span>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</span>
+                  <span>Locate your <strong>Transaction ID</strong> on the ICICI receipt (e.g. 260923...).</span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">4</span>
-                  <span>Paste the <strong>Chitkara Transaction ID / Ref No</strong> below.</span>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">4</span>
+                  <span>Paste it below and click Submit to clear your team.</span>
                 </div>
               </div>
 
@@ -591,11 +655,11 @@ export default function PaymentPortal({
                       type="text"
                       value={txnInput}
                       onChange={(e) => setTxnInput(e.target.value.toUpperCase().replace(/[^A-Z0-9_\-]/g, ""))}
-                      placeholder="e.g. 240923019842 or EAZY..."
+                      placeholder="e.g. 260923286047202 or EAZY..."
                       className="w-full bg-black/60 border border-white/10 focus:border-cyan-400 rounded-xl px-4 py-3 text-sm font-mono text-white tracking-widest placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400 uppercase transition-all"
                     />
                     <span className="text-[10px] font-mono text-slate-500 mt-1 block">
-                      Found on your Chitkara receipt screen or bank confirmation message.
+                      Found at the top of your ICICI payment screen or bank SMS confirmation.
                     </span>
                   </div>
 
@@ -642,7 +706,7 @@ export default function PaymentPortal({
             <div className="p-4 rounded-xl bg-[#0d121c] border border-white/5 text-xs text-slate-400 flex items-start gap-3">
               <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
               <span>
-                <strong className="text-slate-200">Zero Refresh Required:</strong> As soon as the Chitkara accounts reconciliation confirms your payment, this terminal will auto-unlock into the live arena in real time.
+                <strong className="text-slate-200">Zero Refresh Required:</strong> As soon as accounts reconciliation or coordinator verification confirms your payment, this terminal auto-unlocks into the live arena in real time.
               </span>
             </div>
           </div>

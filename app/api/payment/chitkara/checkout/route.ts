@@ -1,5 +1,5 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +8,6 @@ export const dynamic = "force-dynamic";
  */
 function sanitizeRollNo(raw: string | null | undefined): string {
   if (!raw) return "2310990000";
-  // Strip spaces, dashes, brackets, and extra notes
   const cleaned = raw.trim().replace(/[^a-zA-Z0-9]/g, "");
   return cleaned.slice(0, 10);
 }
@@ -19,7 +18,6 @@ function sanitizeRollNo(raw: string | null | undefined): string {
 function sanitizePhone(raw: string | null | undefined): string {
   if (!raw) return "9876543210";
   const digits = raw.replace(/\D/g, "");
-  // If starts with 91 and has 12 digits, strip country code
   if (digits.length === 12 && digits.startsWith("91")) {
     return digits.slice(2);
   }
@@ -27,17 +25,26 @@ function sanitizePhone(raw: string | null | undefined): string {
 }
 
 /**
- * POST /api/payment/chitkara/relay
- * Express 1-Click Checkout Relay:
- * Auto-registers team details directly into Chitkara University's MySQL server (esend.php)
- * and retrieves the encrypted ICICI Bank EazyPay gateway payload (request.php).
+ * GET /api/payment/chitkara/checkout
+ * Express 1-Click Native Checkout:
+ * Automatically pre-registers the team into Chitkara University's MySQL system
+ * and immediately redirects the browser via HTTP 302 to Chitkara's bank request handler,
+ * which auto-submits natively to ICICI Bank EazyPay (UPI QR, Cards, NetBanking).
+ *
+ * Zero popup-blocker issues, zero manual data entry, zero tab switching!
  */
-export async function POST() {
+export async function GET(request: NextRequest) {
+  const origin = request.nextUrl.origin;
+
   try {
     const supabase = createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError
+    } = await supabase.auth.getUser();
+
     if (authError || !user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return NextResponse.redirect(`${origin}/login?error=not_authenticated`, 302);
     }
 
     const admin = createAdminClient();
@@ -51,10 +58,7 @@ export async function POST() {
       .maybeSingle();
 
     if (memError || !membership) {
-      return NextResponse.json(
-        { error: "You must be part of an accepted team to initiate payment." },
-        { status: 400 }
-      );
+      return NextResponse.redirect(`${origin}/dashboard?error=no_active_team`, 302);
     }
 
     // 2. Fetch unit details
@@ -65,15 +69,12 @@ export async function POST() {
       .single();
 
     if (unitError || !unit) {
-      return NextResponse.json({ error: "Team record not found." }, { status: 404 });
+      return NextResponse.redirect(`${origin}/dashboard?error=team_not_found`, 302);
     }
 
     // 3. Strict Leader Check
     if (unit.leader_id !== user.id) {
-      return NextResponse.json(
-        { error: "Access Denied: Only the Team Leader is authorized to initiate payment on the Chitkara portal." },
-        { status: 403 }
-      );
+      return NextResponse.redirect(`${origin}/dashboard?error=leader_only_payment`, 302);
     }
 
     // 4. Fetch all accepted members
@@ -87,18 +88,12 @@ export async function POST() {
       .eq("status", "accepted");
 
     if (membersError || !rawMembers || rawMembers.length < 2) {
-      return NextResponse.json(
-        { error: "Your team must have at least 2 accepted members to complete payment." },
-        { status: 400 }
-      );
+      return NextResponse.redirect(`${origin}/dashboard?error=min_members_required`, 302);
     }
 
     const memberCount = rawMembers.length;
     if (memberCount > 4) {
-      return NextResponse.json(
-        { error: "Maximum team size is 4 members." },
-        { status: 400 }
-      );
+      return NextResponse.redirect(`${origin}/dashboard?error=max_members_exceeded`, 302);
     }
 
     // Find leader profile
@@ -123,7 +118,7 @@ export async function POST() {
     formParams.append("memberCount", String(memberCount));
     formParams.append("paymentAmount", paymentAmount);
 
-    // Append dynamic member array fields
+    // Dynamic member array fields
     rawMembers.forEach((m: any, index: number) => {
       const u = m.users || {};
       const mName = (u.name || `Member ${index + 1}`).trim().slice(0, 50);
@@ -137,7 +132,7 @@ export async function POST() {
       formParams.append(`memberPhone[${index}]`, mPhone);
     });
 
-    // 6. Relay POST to Chitkara esend.php
+    // 6. Relay pre-registration directly to Chitkara's esend.php
     const esendUrl = "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/esend.php";
     const esendResponse = await fetch(esendUrl, {
       method: "POST",
@@ -149,20 +144,18 @@ export async function POST() {
     });
 
     if (!esendResponse.ok) {
-      return NextResponse.json(
-        { error: `Chitkara payment server returned HTTP ${esendResponse.status}. Please try again.` },
-        { status: 502 }
-      );
+      return NextResponse.redirect(`${origin}/dashboard?error=chitkara_server_unavailable`, 302);
     }
 
     const esendHtml = await esendResponse.text();
 
-    // Check for error in response
+    // Check for university validation error
     const errMatch = esendHtml.match(/getErrMsg\('([^']+)'\)/);
     if (errMatch) {
-      return NextResponse.json(
-        { error: `Chitkara portal validation error: ${errMatch[1]}` },
-        { status: 400 }
+      console.error("Chitkara validation error:", errMatch[1]);
+      return NextResponse.redirect(
+        `${origin}/dashboard?error=chitkara_validation_${encodeURIComponent(errMatch[1])}`,
+        302
       );
     }
 
@@ -170,55 +163,12 @@ export async function POST() {
     const tokenMatch = esendHtml.match(/getSendRequest\('([^']+)'\)/);
     if (!tokenMatch) {
       console.error("Failed to parse Chitkara token from response:", esendHtml);
-      return NextResponse.json(
-        { error: "Could not initialize registration with Chitkara portal. Please try again." },
-        { status: 502 }
-      );
+      return NextResponse.redirect(`${origin}/dashboard?error=token_parse_failed`, 302);
     }
 
     const registrationToken = tokenMatch[1];
 
-    // 7. Request encrypted ICICI EazyPay form payload from request.php
-    const requestUrl = "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/request.php";
-    const reqResponse = await fetch(requestUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) TechTrek/2.0"
-      },
-      body: new URLSearchParams({ idA: registrationToken }).toString()
-    });
-
-    if (!reqResponse.ok) {
-      return NextResponse.json(
-        { error: "Failed to connect to bank gateway processor." },
-        { status: 502 }
-      );
-    }
-
-    const reqHtml = await reqResponse.text();
-
-    // Parse ICICI form action URL
-    const actionMatch = reqHtml.match(/action='([^']+)'/);
-    const iciciUrl = actionMatch ? actionMatch[1] : "https://eazypay.icicibank.com/EazyPG";
-
-    // Extract all hidden inputs generated by Chitkara for ICICI Bank
-    const fieldRegex = /name='([^']+)'\s+value='([^']*)'/g;
-    const fields: { name: string; value: string }[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = fieldRegex.exec(reqHtml)) !== null) {
-      fields.push({ name: match[1], value: match[2] });
-    }
-
-    if (fields.length === 0) {
-      console.error("ICICI fields extraction failed:", reqHtml);
-      return NextResponse.json(
-        { error: "Unable to retrieve payment gateway parameters from bank." },
-        { status: 502 }
-      );
-    }
-
-    // Save token on unit for reconciliation
+    // Save token on unit for reconciliation & audit
     await admin
       .from("units")
       .update({
@@ -226,22 +176,12 @@ export async function POST() {
       })
       .eq("id", unit.id);
 
-    return NextResponse.json({
-      success: true,
-      checkoutUrl: `https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/request.php?idA=${registrationToken}`,
-      chitkaraRequestUrl: "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/request.php",
-      iciciUrl,
-      fields,
-      registrationToken,
-      amount: parseInt(paymentAmount),
-      memberCount,
-      teamName: unit.name
-    });
+    // 7. Direct HTTP 302 redirect to Chitkara request.php?idA={token}
+    // Chitkara request.php will instantly auto-submit to ICICI EazyPG within the same window
+    const targetUrl = `https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/request.php?idA=${registrationToken}`;
+    return NextResponse.redirect(targetUrl, 302);
   } catch (err: any) {
-    console.error("Chitkara relay error:", err);
-    return NextResponse.json(
-      { error: err.message || "An unexpected error occurred while communicating with Chitkara portal." },
-      { status: 500 }
-    );
+    console.error("Chitkara checkout route exception:", err);
+    return NextResponse.redirect(`${origin}/dashboard?error=internal_checkout_error`, 302);
   }
 }
