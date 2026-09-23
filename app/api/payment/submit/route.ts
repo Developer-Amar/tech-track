@@ -17,22 +17,22 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const rawUtr = body.utr;
+    const rawUtr = body.transactionId || body.utr;
 
     if (!rawUtr || typeof rawUtr !== "string") {
       return NextResponse.json(
-        { error: "Transaction Reference (UTR) is required." },
+        { error: "Chitkara Transaction ID / Reference is required." },
         { status: 400 }
       );
     }
 
-    // 1. Sanitize and Validate UTR Format (Standard UPI UTR: 12 alphanumeric characters)
+    // 1. Sanitize and Validate Format (Supports Chitkara Transaction IDs & Bank UTRs)
     const cleanUtr = rawUtr.trim().toUpperCase();
-    const utrRegex = /^[A-Z0-9]{12}$/;
+    const utrRegex = /^[A-Z0-9_\-]{6,40}$/;
     if (!utrRegex.test(cleanUtr)) {
       return NextResponse.json(
         {
-          error: "Invalid UTR format. A valid UPI transaction reference (UTR) must be exactly 12 alphanumeric characters (e.g., 426189210452)."
+          error: "Invalid reference format. Must be 6 to 40 alphanumeric characters (e.g., Chitkara Transaction ID or ICICI Ref No)."
         },
         { status: 400 }
       );
@@ -116,6 +116,7 @@ export async function POST(request: Request) {
       .update({
         payment_status: "pending",
         payment_utr: cleanUtr,
+        chitkara_txn_id: cleanUtr,
         payment_amount: calculatedAmount,
         payment_submitted_at: now,
         payment_notes: null

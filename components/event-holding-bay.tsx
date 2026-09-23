@@ -193,7 +193,7 @@ export default function EventHoldingBay({
               </span>
             ) : currentStatus === "pending" ? (
               <span className="text-cyan-400 font-bold flex items-center gap-1.5">
-                <RefreshCw className="w-4 h-4 animate-spin" /> UTR PENDING COORDINATOR VERIFICATION
+                <RefreshCw className="w-4 h-4 animate-spin" /> CHITKARA CLEARANCE PENDING RECONCILIATION
               </span>
             ) : (
               <span className="text-amber-400 font-bold flex items-center gap-1.5">

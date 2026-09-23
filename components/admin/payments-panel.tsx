@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   CreditCard,
   CheckCircle2,
@@ -15,10 +15,11 @@ import {
   ShieldCheck,
   ShieldAlert,
   Users,
-  ExternalLink,
-  ChevronRight,
-  TrendingUp,
-  DollarSign
+  DollarSign,
+  FileSpreadsheet,
+  Upload,
+  X,
+  FileText
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -56,6 +57,7 @@ interface PaymentSettings {
   payment_payee_name: string;
   require_payment_for_event: boolean;
   payment_deadline: string;
+  chitkara_portal_url?: string;
 }
 
 export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean }) {
@@ -65,7 +67,8 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
     payment_upi_id: "amardeveloper3@okhdfcbank",
     payment_payee_name: "Tech Trek IEI x IETE",
     require_payment_for_event: true,
-    payment_deadline: "2026-09-30T11:00:00+05:30"
+    payment_deadline: "2026-09-30T11:00:00+05:30",
+    chitkara_portal_url: "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/"
   });
 
   const [loading, setLoading] = useState(true);
@@ -80,11 +83,17 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
 
   // Settings edit state
   const [editingSettings, setEditingSettings] = useState(false);
-  const [tempUpiId, setTempUpiId] = useState("");
-  const [tempPayee, setTempPayee] = useState("");
+  const [tempPortalUrl, setTempPortalUrl] = useState("");
   const [tempRequirePayment, setTempRequirePayment] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // CSV Reconciler Modal State
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [csvReconciling, setCsvReconciling] = useState(false);
+  const [csvResult, setCsvResult] = useState<any | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchPayments = useCallback(async () => {
     try {
@@ -96,8 +105,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
       setUnits(data.units || []);
       if (data.settings) {
         setSettings(data.settings);
-        setTempUpiId(data.settings.payment_upi_id);
-        setTempPayee(data.settings.payment_payee_name);
+        setTempPortalUrl(data.settings.chitkara_portal_url || "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/");
         setTempRequirePayment(data.settings.require_payment_for_event);
       }
     } catch (err) {
@@ -158,7 +166,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
         body: JSON.stringify({
           unitId: rejectingUnit.id,
           action: "reject",
-          notes: rejectReason.trim() || "Invalid UTR or transaction could not be located."
+          notes: rejectReason.trim() || "Chitkara payment could not be confirmed in university records."
         })
       });
       const json = await res.json();
@@ -181,8 +189,6 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          upiId: tempUpiId,
-          payeeName: tempPayee,
           requirePayment: tempRequirePayment
         })
       });
@@ -190,12 +196,45 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
       if (!res.ok) throw new Error(json.error || "Failed to update settings");
       setSettings(json.settings);
       setEditingSettings(false);
-      setSettingsMsg({ type: "success", text: "Payment configuration updated successfully!" });
+      setSettingsMsg({ type: "success", text: "Gate settings updated successfully!" });
       setTimeout(() => setSettingsMsg(null), 4000);
     } catch (err: any) {
       setSettingsMsg({ type: "error", text: err.message });
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleCsvFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setCsvText(content || "");
+    };
+    reader.readAsText(file);
+  };
+
+  const handleRunReconciliation = async () => {
+    if (!csvText.trim()) return;
+    setCsvReconciling(true);
+    setCsvResult(null);
+
+    try {
+      const res = await fetch("/api/admin/payments/reconcile-csv", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csvData: csvText })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to reconcile CSV");
+      setCsvResult(json);
+      fetchPayments();
+    } catch (err: any) {
+      alert(err.message || "Failed to process CSV.");
+    } finally {
+      setCsvReconciling(false);
     }
   };
 
@@ -226,14 +265,27 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-white font-mono uppercase tracking-wider flex items-center gap-2.5">
             <CreditCard className="w-6 h-6 text-cyan-400" />
-            Payment Operations & Clearance Terminal
+            Payment Operations & Chitkara Reconciliation
           </h2>
           <p className="text-xs text-slate-400 font-mono mt-1">
-            Real-time reconciliation, 1-click clearance authorization, and live UPI gateway management.
+            Real-time reconciliation, 1-click clearance, and autonomous Chitkara Accounts CSV batch verification.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Bulk Reconcile CSV Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowCsvModal(true);
+              setCsvResult(null);
+            }}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-bold text-xs font-mono uppercase tracking-wider flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Reconcile Chitkara CSV</span>
+          </button>
+
           <button
             type="button"
             onClick={fetchPayments}
@@ -251,7 +303,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
               className="px-3.5 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-xs font-mono text-cyan-400 border border-cyan-500/30 flex items-center gap-2 transition-all"
             >
               <Settings className="w-3.5 h-3.5" />
-              <span>{editingSettings ? "Hide Settings" : "Configure UPI Gateway"}</span>
+              <span>{editingSettings ? "Hide Settings" : "Configure Gate"}</span>
             </button>
           )}
         </div>
@@ -281,48 +333,14 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
           <div className="flex items-center justify-between pb-3 border-b border-white/5">
             <h3 className="text-sm font-mono font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <Settings className="w-4 h-4 text-cyan-400" />
-              Dynamic UPI Gateway Configuration
+              Chitkara Payment Gate Settings
             </h3>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
               SUPER ADMIN
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-mono text-slate-300 uppercase mb-1.5">
-                Active Receiver UPI ID
-              </label>
-              <input
-                type="text"
-                value={tempUpiId}
-                onChange={(e) => setTempUpiId(e.target.value)}
-                placeholder="e.g. amardeveloper3@okhdfcbank"
-                className="w-full bg-black/60 border border-white/10 focus:border-cyan-400 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none"
-              />
-              <span className="text-[10px] text-slate-500 font-mono mt-1 block">
-                All participant QR codes will instantly bind to this UPI handle.
-              </span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-mono text-slate-300 uppercase mb-1.5">
-                Payee Organization Name
-              </label>
-              <input
-                type="text"
-                value={tempPayee}
-                onChange={(e) => setTempPayee(e.target.value)}
-                placeholder="e.g. Tech Trek IEI x IETE"
-                className="w-full bg-black/60 border border-white/10 focus:border-cyan-400 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none"
-              />
-              <span className="text-[10px] text-slate-500 font-mono mt-1 block">
-                Displayed on the participant receipt & UPI intent prompt.
-              </span>
-            </div>
-          </div>
-
-          <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-white/5">
+          <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
@@ -332,7 +350,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
                 className="w-4 h-4 rounded border-slate-700 bg-black text-cyan-500 focus:ring-cyan-400"
               />
               <label htmlFor="requirePaymentToggle" className="text-xs font-mono text-slate-300 select-none">
-                Enforce Payment Clearance to enter Live Event Arena (/event)
+                Enforce Official Payment Clearance to enter Live Event Arena (/event)
               </label>
             </div>
 
@@ -362,7 +380,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
         {/* Total Collected */}
         <div className="p-4 rounded-2xl bg-[#0d121c] border border-emerald-500/30 relative overflow-hidden">
           <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest flex items-center justify-between">
-            <span>Collected</span>
+            <span>Verified</span>
             <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
           </div>
           <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400 mt-1.5">
@@ -409,7 +427,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
           <div className="text-xl sm:text-2xl font-black font-mono text-amber-400 mt-1.5">
             {stats?.unpaidCount ?? 0}
           </div>
-          <div className="text-[10px] font-mono text-slate-500 mt-0.5">No UTR submitted</div>
+          <div className="text-[10px] font-mono text-slate-500 mt-0.5">Awaiting payment</div>
         </div>
 
         {/* Rejected Units */}
@@ -445,7 +463,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by team, leader name, email, or UTR..."
+            placeholder="Search by team, leader name, email, or Chitkara Txn ID..."
             className="w-full bg-[#0d121c] border border-white/10 focus:border-cyan-400 rounded-xl pl-10 pr-4 py-2 text-xs font-mono text-white placeholder:text-slate-600 focus:outline-none"
           />
         </div>
@@ -484,7 +502,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
                 <th className="py-3 px-4">Leader</th>
                 <th className="py-3 px-4">Members</th>
                 <th className="py-3 px-4">Fee</th>
-                <th className="py-3 px-4">UTR Reference</th>
+                <th className="py-3 px-4">Chitkara Txn ID / Ref</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -500,10 +518,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
                 filteredUnits.map((u) => {
                   const isActioning = actionLoading === u.id;
                   return (
-                    <tr
-                      key={u.id}
-                      className="hover:bg-white/[0.02] transition-colors"
-                    >
+                    <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
                       {/* Team Name */}
                       <td className="py-3 px-4">
                         <div className="font-bold text-white font-mono">{u.name}</div>
@@ -530,18 +545,18 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
                         ₹{u.payment_amount}
                       </td>
 
-                      {/* UTR */}
+                      {/* Chitkara Txn ID */}
                       <td className="py-3 px-4">
                         {u.payment_utr ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-cyan-400 bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-500/20 font-bold">
+                            <span className="font-mono text-cyan-400 bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-500/20 font-bold max-w-[180px] truncate">
                               {u.payment_utr}
                             </span>
                             <button
                               type="button"
                               onClick={() => copyUtr(u.payment_utr!)}
-                              title="Copy UTR to clipboard"
-                              className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                              title="Copy Reference"
+                              className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors shrink-0"
                             >
                               {copiedUtr === u.payment_utr ? (
                                 <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -597,7 +612,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
                               type="button"
                               onClick={() => handleVerify(u.id)}
                               disabled={isActioning}
-                              title="Approve & Clear Team for Arena"
+                              title="Clear Team for Live Arena"
                               className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold transition-all flex items-center gap-1"
                             >
                               <Check className="w-3 h-3" />
@@ -613,7 +628,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
                                 setRejectReason("");
                               }}
                               disabled={isActioning}
-                              title="Reject UTR"
+                              title="Reject Reference"
                               className="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-[11px] font-bold transition-all flex items-center gap-1"
                             >
                               <XCircle className="w-3 h-3" />
@@ -631,6 +646,127 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
         </div>
       </div>
 
+      {/* ── Bulk CSV Reconciler Modal ─────────────────────────────────────── */}
+      {showCsvModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-2xl bg-[#0b0f19] border border-cyan-500/30 rounded-2xl p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <FileSpreadsheet className="w-6 h-6 text-emerald-400" />
+                <h3 className="text-base font-bold text-white font-mono uppercase tracking-wider">
+                  Autonomous Chitkara CSV Reconciler
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCsvModal(false)}
+                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 font-mono leading-relaxed">
+              Upload the official accounts export CSV file from <code className="text-cyan-400">paym.chitkara.edu.in</code>. The system will match Roll Numbers and Transaction IDs, auto-clearing all 400 teams instantly in real time!
+            </p>
+
+            {/* File Upload Box */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-cyan-500/30 hover:border-cyan-500/60 rounded-xl p-6 text-center cursor-pointer bg-black/40 transition-colors"
+            >
+              <Upload className="w-8 h-8 text-cyan-400 mx-auto mb-2" />
+              <div className="text-xs font-mono font-bold text-white">Click to Upload Chitkara CSV File</div>
+              <div className="text-[10px] font-mono text-slate-500 mt-1">Accepts .csv or .txt reports</div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleCsvFileUpload}
+                className="hidden"
+              />
+            </div>
+
+            {/* Direct Paste Area */}
+            <div>
+              <label className="block text-xs font-mono text-slate-300 uppercase mb-1.5">
+                Or Paste Raw CSV Data
+              </label>
+              <textarea
+                rows={5}
+                value={csvText}
+                onChange={(e) => setCsvText(e.target.value)}
+                placeholder="Roll No, Transaction ID, Name, Amount, Status&#10;2310990001, 240923019842, Amar Developer, 100, Success"
+                className="w-full bg-black/60 border border-white/10 focus:border-cyan-400 rounded-xl p-3 text-xs font-mono text-white focus:outline-none"
+              />
+            </div>
+
+            {/* Reconciliation Result Preview */}
+            {csvResult && (
+              <div className="p-4 rounded-xl bg-black/60 border border-emerald-500/40 space-y-3 font-mono text-xs">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Reconciliation Complete!</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                  <div className="bg-white/5 p-2 rounded">
+                    <span className="text-slate-400">Processed:</span> {csvResult.summary.totalProcessed}
+                  </div>
+                  <div className="bg-emerald-500/10 p-2 rounded text-emerald-300 font-bold">
+                    <span>Newly Cleared:</span> {csvResult.summary.newlyVerified}
+                  </div>
+                  <div className="bg-white/5 p-2 rounded">
+                    <span className="text-slate-400">Already Verified:</span> {csvResult.summary.alreadyVerified}
+                  </div>
+                  <div className="bg-amber-500/10 p-2 rounded text-amber-300">
+                    <span>Unmatched:</span> {csvResult.summary.unmatchedCount}
+                  </div>
+                </div>
+
+                {csvResult.unmatched && csvResult.unmatched.length > 0 && (
+                  <div className="mt-2 text-[10px] text-slate-400 max-h-32 overflow-y-auto">
+                    <div className="font-bold text-amber-400 mb-1">Unmatched Rows:</div>
+                    {csvResult.unmatched.map((u: any, idx: number) => (
+                      <div key={idx} className="border-b border-white/5 py-1">
+                        Row {u.rowNumber}: Roll {u.rollNo} ({u.name}) — {u.reason}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setShowCsvModal(false)}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-mono text-slate-400"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleRunReconciliation}
+                disabled={csvReconciling || !csvText.trim()}
+                className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs font-mono uppercase tracking-wider transition-all disabled:opacity-50 flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+              >
+                {csvReconciling ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Auto-Reconciling Teams...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Run Auto-Reconciliation</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Rejection Confirmation Modal ────────────────────────────────── */}
       {rejectingUnit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -640,14 +776,14 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
                 <ShieldAlert className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white font-mono">Reject Payment UTR</h3>
+                <h3 className="text-base font-bold text-white font-mono">Reject Transaction ID</h3>
                 <p className="text-xs text-slate-400 font-mono">Team: {rejectingUnit.name}</p>
               </div>
             </div>
 
             <div className="text-xs text-slate-300 font-mono bg-black/40 p-3 rounded-xl border border-white/5 space-y-1">
               <div>
-                <span className="text-slate-500">Submitted UTR:</span>{" "}
+                <span className="text-slate-500">Submitted Reference:</span>{" "}
                 <span className="text-white font-bold">{rejectingUnit.payment_utr || "None"}</span>
               </div>
               <div>
@@ -663,7 +799,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
                 rows={3}
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="e.g. UTR not found in bank statement, amount mismatch, etc."
+                placeholder="e.g. Transaction ID not found in Chitkara bank records, amount mismatch, etc."
                 className="w-full bg-black/60 border border-white/10 focus:border-rose-400 rounded-xl p-3 text-xs font-mono text-white focus:outline-none"
               />
             </div>
