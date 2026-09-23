@@ -167,19 +167,19 @@ export default function PaymentPortal({
         throw new Error(json.error || "Failed to initialize official Chitkara payment gateway.");
       }
 
-      // Dynamically construct and submit the encrypted ICICI EazyPay form
+      // Hand off the pre-registered token directly to Chitkara's official request.php
+      // This ensures the browser arrives at paym.chitkara.edu.in first, and Chitkara itself
+      // performs the native same-origin submission to ICICI Bank without cross-origin blocking!
       const form = document.createElement("form");
       form.method = "POST";
-      form.action = json.iciciUrl || "https://eazypay.icicibank.com/EazyPG";
-      form.target = "_blank"; // Opens ICICI Bank in a fresh, secure tab
+      form.action = json.chitkaraRequestUrl || "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/request.php";
+      form.target = "_blank"; // Opens Chitkara University official processor in a fresh tab
 
-      json.fields.forEach((field: { name: string; value: string }) => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = field.name;
-        input.value = field.value;
-        form.appendChild(input);
-      });
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "idA";
+      input.value = json.registrationToken;
+      form.appendChild(input);
 
       document.body.appendChild(form);
       form.submit();

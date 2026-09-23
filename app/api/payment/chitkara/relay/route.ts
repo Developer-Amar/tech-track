@@ -228,6 +228,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
+      chitkaraRequestUrl: "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/request.php",
       iciciUrl,
       fields,
       registrationToken,
