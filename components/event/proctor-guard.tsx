@@ -246,6 +246,26 @@ export default function ProctorGuard({
     };
   }, [reportStrike]);
 
+  // ── 2b. Virtual Desktop Switch Detection (polling) ─────────────────────
+  // Windows virtual desktop switches (Win+Ctrl+Left/Right) do NOT fire blur
+  // or visibilitychange events. Poll document.hasFocus() to catch them.
+  const hadFocusRef = useRef(true);
+  useEffect(() => {
+    const pollFocus = setInterval(() => {
+      const hasFocus = document.hasFocus();
+      const wasHidden = document.hidden;
+
+      if (!hasFocus && !wasHidden && hadFocusRef.current) {
+        // Transitioned from focused → unfocused while page is visible
+        // (virtual desktop switch, or OS-level focus loss not caught by blur)
+        reportStrike("focus_loss");
+      }
+      hadFocusRef.current = hasFocus;
+    }, 2000);
+
+    return () => clearInterval(pollFocus);
+  }, [reportStrike]);
+
   // ── 3. DevTools Detection ───────────────────────────────────────────────
   useEffect(() => {
     const checkDevTools = () => {
