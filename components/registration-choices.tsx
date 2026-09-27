@@ -33,7 +33,10 @@ export default function RegistrationChoices({
 
   const fetchInvites = useCallback(async () => {
     try {
-      const res = await fetch("/api/units/respond");
+      const res = await fetch("/api/units/respond", {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      });
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json.invites)) {
@@ -44,6 +47,31 @@ export default function RegistrationChoices({
       console.error("Failed to fetch pending invites:", err);
     }
   }, []);
+
+  // Listen to cross-component sync events, window focus, and periodic safety polling
+  useEffect(() => {
+    const handleSync = () => {
+      fetchInvites();
+    };
+
+    window.addEventListener("tech_track_refresh", handleSync);
+    window.addEventListener("focus", handleSync);
+    document.addEventListener("visibilitychange", handleSync);
+
+    // Active polling while on registration choices screen (every 3 seconds)
+    const pollInterval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchInvites();
+      }
+    }, 3000);
+
+    return () => {
+      window.removeEventListener("tech_track_refresh", handleSync);
+      window.removeEventListener("focus", handleSync);
+      document.removeEventListener("visibilitychange", handleSync);
+      clearInterval(pollInterval);
+    };
+  }, [fetchInvites]);
 
   useEffect(() => {
     const supabase = createClient();

@@ -2,6 +2,13 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_CACHE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
 
 /**
  * GET /api/payment/info
@@ -30,7 +37,7 @@ export async function GET() {
       return NextResponse.json({
         hasTeam: false,
         message: "No active team found. Join or create a team first."
-      });
+      }, { headers: NO_CACHE_HEADERS });
     }
 
     // 2. Fetch unit details
@@ -114,7 +121,7 @@ export async function GET() {
         payment_deadline: settings?.payment_deadline || "2026-10-07T11:00:00+05:30",
         event_live: Boolean(settings?.event_live)
       }
-    });
+    }, { headers: NO_CACHE_HEADERS });
   } catch (err: any) {
     console.error("Payment info error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

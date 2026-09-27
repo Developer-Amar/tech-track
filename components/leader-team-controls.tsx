@@ -33,7 +33,10 @@ export default function LeaderTeamControls({
 
   const fetchRoster = useCallback(async () => {
     try {
-      const res = await fetch('/api/units/manage');
+      const res = await fetch('/api/units/manage', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.hasTeam && Array.isArray(json.members)) {
@@ -44,6 +47,30 @@ export default function LeaderTeamControls({
       console.error('Failed to fetch team roster:', err);
     }
   }, []);
+
+  // Listen to cross-component sync events, window focus, and safety polling
+  useEffect(() => {
+    const handleSync = () => {
+      fetchRoster();
+    };
+
+    window.addEventListener("tech_track_refresh", handleSync);
+    window.addEventListener("focus", handleSync);
+    document.addEventListener("visibilitychange", handleSync);
+
+    const pollInterval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchRoster();
+      }
+    }, 3000);
+
+    return () => {
+      window.removeEventListener("tech_track_refresh", handleSync);
+      window.removeEventListener("focus", handleSync);
+      document.removeEventListener("visibilitychange", handleSync);
+      clearInterval(pollInterval);
+    };
+  }, [fetchRoster]);
 
   useEffect(() => {
     if (!unitId) return;
@@ -98,6 +125,13 @@ export default function LeaderTeamControls({
         setEmail("");
         setShowLockModal(false);
         fetchRoster();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("tech_track_refresh", {
+              detail: { action, unitId, timestamp: Date.now() },
+            })
+          );
+        }
         router.refresh();
       } else {
         setMessage({ type: 'error', text: data.error ?? 'Failed' });

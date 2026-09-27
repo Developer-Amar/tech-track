@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -22,12 +22,20 @@ export default function EventRealtimeSync({
   const router = useRouter();
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const debouncedRefresh = () => {
+  const triggerRefresh = useCallback((source = "realtime") => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("tech_track_refresh", {
+          detail: { unitId, source, timestamp: Date.now() },
+        })
+      );
+    }
+
     if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
     refreshTimeoutRef.current = setTimeout(() => {
       router.refresh();
-    }, 350);
-  };
+    }, 250);
+  }, [unitId, router]);
 
   useEffect(() => {
     if (!unitId) return;
@@ -46,7 +54,7 @@ export default function EventRealtimeSync({
           filter: `unit_id=eq.${unitId}`,
         },
         () => {
-          debouncedRefresh();
+          triggerRefresh("progress_update");
         }
       )
       .subscribe();
@@ -64,7 +72,7 @@ export default function EventRealtimeSync({
           filter: "id=eq.1",
         },
         () => {
-          debouncedRefresh();
+          triggerRefresh("settings_update");
         }
       )
       .subscribe();
@@ -82,7 +90,7 @@ export default function EventRealtimeSync({
           filter: `id=eq.${unitId}`,
         },
         () => {
-          debouncedRefresh();
+          triggerRefresh("unit_update");
         }
       )
       .subscribe();
@@ -100,17 +108,41 @@ export default function EventRealtimeSync({
           filter: `unit_id=eq.${unitId}`,
         },
         () => {
-          debouncedRefresh();
+          triggerRefresh("qualifiers_update");
         }
       )
       .subscribe();
     channels.push(qualChannel);
 
+    // 5. Window focus & visibility recovery
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        triggerRefresh("focus_or_visible");
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
+    // 6. Safety heartbeat: every 5s during live event
+    const safetyTimer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        window.dispatchEvent(
+          new CustomEvent("tech_track_refresh", {
+            detail: { unitId, source: "event_heartbeat", timestamp: Date.now() },
+          })
+        );
+      }
+    }, 5000);
+
     return () => {
       if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      clearInterval(safetyTimer);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
-  }, [unitId]);
+  }, [unitId, triggerRefresh]);
 
   return null;
 }

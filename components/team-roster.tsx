@@ -31,7 +31,10 @@ export default function TeamRoster({
 
     const fetchLatestRoster = async () => {
       try {
-        const res = await fetch("/api/units/manage");
+        const res = await fetch("/api/units/manage", {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+        });
         if (res.ok) {
           const json = await res.json();
           if (json.hasTeam && Array.isArray(json.members)) {
@@ -42,6 +45,20 @@ export default function TeamRoster({
         console.error("Failed to re-fetch roster in TeamRoster:", err);
       }
     };
+
+    const handleSync = () => {
+      fetchLatestRoster();
+    };
+
+    window.addEventListener("tech_track_refresh", handleSync);
+    window.addEventListener("focus", handleSync);
+    document.addEventListener("visibilitychange", handleSync);
+
+    const pollInterval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchLatestRoster();
+      }
+    }, 3000);
 
     const channel = supabase
       .channel(`roster-${unitId}`)
@@ -60,6 +77,10 @@ export default function TeamRoster({
       .subscribe();
 
     return () => {
+      window.removeEventListener("tech_track_refresh", handleSync);
+      window.removeEventListener("focus", handleSync);
+      document.removeEventListener("visibilitychange", handleSync);
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [unitId]);

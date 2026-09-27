@@ -2,6 +2,15 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { isChitkaraEmail } from "@/lib/validation";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_CACHE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
 type ManageAction =
   | { action: "invite_member"; email: string }
   | { action: "remove_member"; user_id: string }
@@ -195,5 +204,5 @@ export async function GET() {
     unit,
     isLeader: unit.leader_id === user.id,
     members: memberDetails,
-  });
+  }, { headers: NO_CACHE_HEADERS });
 }

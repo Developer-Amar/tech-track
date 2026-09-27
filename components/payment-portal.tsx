@@ -84,17 +84,22 @@ export default function PaymentPortal({
 
   const fetchPaymentInfo = useCallback(async () => {
     try {
-      const res = await fetch("/api/payment/info");
+      const res = await fetch("/api/payment/info", {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      });
       if (!res.ok) return;
       const json = await res.json();
       if (json.hasTeam) {
         setData(json);
-        if (json.unit.payment_utr) {
+        if (json.unit?.payment_utr) {
           setTxnInput(json.unit.payment_utr);
         }
-        if (json.unit.payment_status === "verified" && onClearanceGranted) {
+        if (json.unit?.payment_status === "verified" && onClearanceGranted) {
           onClearanceGranted();
         }
+      } else {
+        setData(null);
       }
     } catch (err) {
       console.error("Error fetching payment info:", err);
@@ -103,11 +108,46 @@ export default function PaymentPortal({
     }
   }, [onClearanceGranted]);
 
+  // Synchronize immediately when initialData prop changes or on initial mount
   useEffect(() => {
-    if (!initialData) {
+    if (initialData) {
+      setData(initialData);
+      if (initialData.unit?.payment_utr) {
+        setTxnInput(initialData.unit.payment_utr);
+      }
+      setLoading(false);
+    } else {
       fetchPaymentInfo();
     }
   }, [initialData, fetchPaymentInfo]);
+
+  // Cross-component sync, window focus, and adaptive polling fallback
+  useEffect(() => {
+    const handleSync = () => {
+      fetchPaymentInfo();
+    };
+
+    window.addEventListener("tech_track_refresh", handleSync);
+    window.addEventListener("focus", handleSync);
+    document.addEventListener("visibilitychange", handleSync);
+
+    const needsPolling = !data?.hasTeam || !data?.unit?.locked || data?.unit?.payment_status !== "verified";
+    let pollInterval: NodeJS.Timeout | null = null;
+    if (needsPolling) {
+      pollInterval = setInterval(() => {
+        if (typeof document !== "undefined" && document.visibilityState === "visible") {
+          fetchPaymentInfo();
+        }
+      }, 3000);
+    }
+
+    return () => {
+      window.removeEventListener("tech_track_refresh", handleSync);
+      window.removeEventListener("focus", handleSync);
+      document.removeEventListener("visibilitychange", handleSync);
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [fetchPaymentInfo, data?.hasTeam, data?.unit?.locked, data?.unit?.payment_status]);
 
   // Check URL params for checkout redirect errors
   useEffect(() => {
@@ -232,6 +272,13 @@ export default function PaymentPortal({
       }
 
       setSuccessMsg("Transaction ID submitted! Clearance is pending coordinator verification.");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("tech_track_refresh", {
+            detail: { action: "payment_submitted", timestamp: Date.now() },
+          })
+        );
+      }
       fetchPaymentInfo();
     } catch (err: any) {
       setErrorMsg(err.message || "An unexpected error occurred.");

@@ -64,7 +64,7 @@ export default function EventHoldingBay({
     updateTimer();
     const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [settings?.payment_deadline]);
 
   // Listen to realtime unit changes for immediate unlock
   useEffect(() => {

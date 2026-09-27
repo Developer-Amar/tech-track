@@ -18,10 +18,9 @@ export default function JoinRequestsPanel({ unitId }: { unitId: string }) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   const fetchRequests = useCallback(async () => {
     try {
+      const supabase = createClient();
       const { data } = await supabase
         .from('unit_members')
         .select('id, user_id, unit_id, status, users:user_id (name, email)')
@@ -33,16 +32,32 @@ export default function JoinRequestsPanel({ unitId }: { unitId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [supabase, unitId]);
+  }, [unitId]);
 
   useEffect(() => {
     fetchRequests();
+    const supabase = createClient();
+
+    const handleSync = () => {
+      fetchRequests();
+    };
+
+    window.addEventListener("tech_track_refresh", handleSync);
+    window.addEventListener("focus", handleSync);
+    document.addEventListener("visibilitychange", handleSync);
+
     const channel = supabase
-      .channel('join-requests')
+      .channel(`join-requests-${unitId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'unit_members', filter: `unit_id=eq.${unitId}` }, () => fetchRequests())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchRequests, supabase, unitId]);
+
+    return () => {
+      window.removeEventListener("tech_track_refresh", handleSync);
+      window.removeEventListener("focus", handleSync);
+      document.removeEventListener("visibilitychange", handleSync);
+      supabase.removeChannel(channel);
+    };
+  }, [fetchRequests, unitId]);
 
   const respond = async (userId: string, response: 'accepted' | 'declined') => {
     setActionLoading(userId);
@@ -52,6 +67,13 @@ export default function JoinRequestsPanel({ unitId }: { unitId: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ unit_id: unitId, user_id: userId, response }),
       });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("tech_track_refresh", {
+            detail: { action: "request_respond", unitId, userId, response, timestamp: Date.now() },
+          })
+        );
+      }
       await fetchRequests();
     } catch (err) {
       console.error('Failed to respond:', err);

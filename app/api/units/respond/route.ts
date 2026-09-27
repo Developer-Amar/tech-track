@@ -1,6 +1,15 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_CACHE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
 /**
  * POST /api/units/respond
  *
@@ -170,5 +179,5 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ invites: pendingInvites });
+  return NextResponse.json({ invites: pendingInvites }, { headers: NO_CACHE_HEADERS });
 }

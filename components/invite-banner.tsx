@@ -36,6 +36,14 @@ export default function InviteBanner({
       return;
     }
 
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("tech_track_refresh", {
+          detail: { unitId: invite.unit_id, action: response, timestamp: Date.now() },
+        })
+      );
+    }
+
     router.refresh();
   }
 

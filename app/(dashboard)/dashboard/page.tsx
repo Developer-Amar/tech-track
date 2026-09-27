@@ -159,6 +159,59 @@ export default async function DashboardPage() {
     }
   }
 
+  // Pre-compute initial payment data for instant zero-waterfall hydration
+  let initialPaymentData: any = null;
+  if (unitData) {
+    const acceptedCount = unitData.members.filter((m) => m.status === "accepted").length;
+    const { data: fullUnit } = await adminSupabase
+      .from("units")
+      .select("payment_status, payment_amount, payment_utr, payment_submitted_at, payment_verified_at, payment_notes")
+      .eq("id", unitData.id)
+      .single();
+
+    const { data: paySettings } = await adminSupabase
+      .from("event_settings")
+      .select("payment_upi_id, payment_payee_name, require_payment_for_event, payment_deadline")
+      .eq("id", 1)
+      .single();
+
+    initialPaymentData = {
+      hasTeam: true,
+      unit: {
+        id: unitData.id,
+        name: unitData.name ?? "Your Team",
+        leader_id: unitData.leader_id,
+        locked: unitData.locked,
+        payment_status: fullUnit?.payment_status || "unpaid",
+        payment_amount: fullUnit?.payment_amount || Math.max(acceptedCount * 50, 100),
+        payment_utr: fullUnit?.payment_utr || null,
+        payment_submitted_at: fullUnit?.payment_submitted_at || null,
+        payment_verified_at: fullUnit?.payment_verified_at || null,
+        payment_notes: fullUnit?.payment_notes || null,
+      },
+      members: unitData.members
+        .filter((m) => m.status === "accepted")
+        .map((m) => ({
+          id: m.user_id,
+          name: m.name,
+          email: m.email,
+          avatar_url: null,
+          isLeader: m.is_leader,
+        })),
+      memberCount: acceptedCount,
+      requiredAmount: fullUnit?.payment_amount || Math.max(acceptedCount * 50, 100),
+      isLeader: unitData.leader_id === user.id,
+      settings: {
+        payment_upi_id: paySettings?.payment_upi_id || "7888775466@ptaxis",
+        payment_payee_name: paySettings?.payment_payee_name || "AMARPREET SINGH",
+        require_payment_for_event: paySettings?.require_payment_for_event ?? true,
+        payment_deadline: paySettings?.payment_deadline || "October 7th, 11:00 AM IST",
+        chitkara_portal_url: "https://paym.chitkara.edu.in/quickPay/",
+        event_live: Boolean(settings?.event_live),
+      },
+    };
+  }
+
   const isLeader = unitData?.leader_id === user.id;
 
   return (
@@ -233,13 +286,18 @@ export default async function DashboardPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <BentoCard delay={0.3} glowColor="purple" className="p-1">
                   <TeamRoster
+                    key={`roster_${unitData.id}_${unitData.members.length}`}
                     unitId={unitData.id}
                     teamName={unitData.name ?? "Your Team"}
                     initialMembers={unitData.members}
                   />
                 </BentoCard>
                 <div className="space-y-6">
-                  <LeaderTeamControls unitId={unitData.id} members={unitData.members} />
+                  <LeaderTeamControls
+                    key={`controls_${unitData.id}_${unitData.members.length}`}
+                    unitId={unitData.id}
+                    members={unitData.members}
+                  />
                   <JoinRequestsPanel unitId={unitData.id} />
                 </div>
               </div>
@@ -257,7 +315,11 @@ export default async function DashboardPage() {
             )}
 
             {/* Operational Clearance & Payment Portal */}
-            <PaymentPortal eventLive={Boolean(settings?.event_live)} />
+            <PaymentPortal
+              key={unitData ? `${unitData.id}_${unitData.locked ? "locked" : "open"}_${initialPaymentData?.unit?.payment_status || "unpaid"}` : "no-team"}
+              initialData={initialPaymentData}
+              eventLive={Boolean(settings?.event_live)}
+            />
 
             {/* Download Event Pass — shown when:
                 - Participants: team is locked

@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 /**
  * DashboardRealtimeSync
  *
- * Invisible background client coordinator that listens to all critical Supabase
- * Realtime events for this user, their unit, and global settings.
- *
- * When an invite arrives, a member accepts/leaves, the team gets locked,
- * payment is cleared, or admin starts/stops event:
- * Automatically re-renders the dashboard via debounced router.refresh()
- * with zero manual browser reloads required.
+ * Invisible background client coordinator that guarantees instantaneous synchronization:
+ * 1. Supabase Realtime WebSocket subscriptions (unit_members, units, event_settings)
+ * 2. Instant cross-component dispatch via "tech_track_refresh" CustomEvent
+ * 3. Immediate sync on window focus and tab visibility change
+ * 4. Fallback interval polling for active state transitions (invites, roster lock, payment)
  */
 export default function DashboardRealtimeSync({
   userId,
@@ -25,12 +23,22 @@ export default function DashboardRealtimeSync({
   const router = useRouter();
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const debouncedRefresh = () => {
+  const triggerRefresh = useCallback((source = "realtime") => {
+    // 1. Immediately notify all local client components on the page
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("tech_track_refresh", {
+          detail: { userId, unitId, source, timestamp: Date.now() },
+        })
+      );
+    }
+
+    // 2. Debounce router.refresh() to update server components without spamming
     if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
     refreshTimeoutRef.current = setTimeout(() => {
       router.refresh();
-    }, 350);
-  };
+    }, 250);
+  }, [userId, unitId, router]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -48,7 +56,7 @@ export default function DashboardRealtimeSync({
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          debouncedRefresh();
+          triggerRefresh("user_membership_change");
         }
       )
       .subscribe();
@@ -67,7 +75,7 @@ export default function DashboardRealtimeSync({
             filter: `unit_id=eq.${unitId}`,
           },
           () => {
-            debouncedRefresh();
+            triggerRefresh("team_membership_change");
           }
         )
         .subscribe();
@@ -85,7 +93,7 @@ export default function DashboardRealtimeSync({
             filter: `id=eq.${unitId}`,
           },
           () => {
-            debouncedRefresh();
+            triggerRefresh("unit_update");
           }
         )
         .subscribe();
@@ -104,17 +112,43 @@ export default function DashboardRealtimeSync({
           filter: "id=eq.1",
         },
         () => {
-          debouncedRefresh();
+          triggerRefresh("settings_update");
         }
       )
       .subscribe();
     channels.push(settingsChannel);
 
+    // 5. Window focus & visibility recovery: sync immediately when tab becomes visible
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        triggerRefresh("focus_or_visible");
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
+    // 6. Safety heartbeat: every 3s when waiting for a team, or every 6s when in a team
+    const pollIntervalMs = unitId ? 5000 : 3000;
+    const safetyTimer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        // Send internal event so client widgets poll without full RSC re-fetch
+        window.dispatchEvent(
+          new CustomEvent("tech_track_refresh", {
+            detail: { userId, unitId, source: "safety_heartbeat", timestamp: Date.now() },
+          })
+        );
+      }
+    }, pollIntervalMs);
+
     return () => {
       if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      clearInterval(safetyTimer);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
-  }, [userId, unitId]);
+  }, [userId, unitId, triggerRefresh]);
 
   return null;
 }
