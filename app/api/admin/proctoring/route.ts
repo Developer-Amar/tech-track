@@ -22,7 +22,7 @@ export async function GET() {
   const [{ data: states }, { data: events }] = await Promise.all([
     admin
       .from("proctoring_state")
-      .select("id, unit_id, checkpoint_id, round_number, tab_switches, tab_switch_limit, locked_out, ai_flags_count, flagged_at, created_at")
+      .select("id, unit_id, checkpoint_id, tab_switches, tab_switch_limit, locked_out, flagged_at, created_at")
       .order("flagged_at", { ascending: false, nullsFirst: false }),
     admin
       .from("proctoring_events")
@@ -77,11 +77,11 @@ export async function GET() {
       id: s.id,
       unit_id: s.unit_id,
       unit_name: unitName,
-      round_number: s.round_number || cpMap.get(s.checkpoint_id) || 1,
+      round_number: cpMap.get(s.checkpoint_id) || 1,
       tab_switches: s.tab_switches,
       tab_switch_limit: s.tab_switch_limit,
       locked_out: s.locked_out,
-      ai_flags_count: s.ai_flags_count ?? 0,
+      ai_flags_count: 0,
       flagged_at: s.flagged_at,
     };
   });

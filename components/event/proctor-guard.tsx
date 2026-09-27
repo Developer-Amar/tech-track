@@ -87,6 +87,9 @@ export default function ProctorGuard({
   const [activeDeviceBlocked, setActiveDeviceBlocked] = useState(false);
   const [activeUserName, setActiveUserName] = useState<string | null>(null);
   const prevTabSwitchesRef = useRef<number>(0);
+  // Refs to avoid stale closures in event listeners
+  const lockedOutRef = useRef(false);
+  const activeDeviceBlockedRef = useRef(false);
 
   // Generate unique device session token
   const sessionTokenRef = useRef<string>(
@@ -121,16 +124,20 @@ export default function ProctorGuard({
       .then((data) => {
         if (data.active_device_blocked) {
           setActiveDeviceBlocked(true);
+          activeDeviceBlockedRef.current = true;
           setActiveUserName(data.active_user_name ?? "Another team member");
         } else {
           setActiveDeviceBlocked(false);
+          activeDeviceBlockedRef.current = false;
           const initialSwitches = data.tab_switches ?? 0;
           setTabSwitches(initialSwitches);
           prevTabSwitchesRef.current = initialSwitches;
           setLimit(data.tab_switch_limit ?? 3);
-          setLockedOut(data.locked_out ?? false);
+          const isLocked = data.locked_out ?? false;
+          setLockedOut(isLocked);
+          lockedOutRef.current = isLocked;
           if (data.unit_id) setUnitId(data.unit_id);
-          if (data.locked_out) onLockout();
+          if (isLocked) onLockout();
         }
         setLoaded(true);
       })
@@ -164,12 +171,14 @@ export default function ProctorGuard({
   }, [round, activeDeviceBlocked, lockedOut]);
 
   // ── Strike Reporting Helper ─────────────────────────────────────────────
+  // Uses refs for lockedOut/activeDeviceBlocked to avoid stale closure in
+  // event listeners (visibilitychange, blur) that hold old callback references.
   const reportStrike = useCallback(
     (
       eventType: "tab_switch" | "focus_loss" | "paste_detected" | "devtools_opened",
       extra?: { snippet?: string; char_count?: number }
     ) => {
-      if (lockedOut || activeDeviceBlocked) return;
+      if (lockedOutRef.current || activeDeviceBlockedRef.current) return;
 
       fetch("/api/event/proctor/report", {
         method: "POST",
@@ -196,12 +205,13 @@ export default function ProctorGuard({
           }
           if (data.locked_out) {
             setLockedOut(true);
+            lockedOutRef.current = true;
             onLockout();
           }
         })
         .catch((err) => console.error("Proctor report error:", err));
     },
-    [round, lockedOut, activeDeviceBlocked, onLockout]
+    [round, onLockout]
   );
 
   // ── 1. Tab Switch (visibilitychange) ────────────────────────────────────
@@ -291,8 +301,10 @@ export default function ProctorGuard({
             }
             setTabSwitches(newSwitches);
             setLimit(updated.tab_switch_limit ?? 3);
-            setLockedOut(updated.locked_out ?? false);
-            if (updated.locked_out) {
+            const isLocked = updated.locked_out ?? false;
+            setLockedOut(isLocked);
+            lockedOutRef.current = isLocked;
+            if (isLocked) {
               onLockout();
             }
           }
@@ -310,6 +322,7 @@ export default function ProctorGuard({
           const session = payload.new as any;
           if (session && session.session_token !== sessionTokenRef.current) {
             setActiveDeviceBlocked(true);
+            activeDeviceBlockedRef.current = true;
             setActiveUserName(session.user_name ?? "Another team member");
           }
         }
@@ -370,6 +383,7 @@ export default function ProctorGuard({
         .then((data) => {
           if (!data.locked_out) {
             setLockedOut(false);
+            lockedOutRef.current = false;
             setTabSwitches(data.tab_switches ?? 0);
             prevTabSwitchesRef.current = data.tab_switches ?? 0;
           }

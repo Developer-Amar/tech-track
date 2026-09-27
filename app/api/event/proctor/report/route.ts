@@ -118,16 +118,19 @@ export async function POST(request: Request) {
       { onConflict: "unit_id,round_number" }
     );
 
-    // Return current proctoring state
-    const { data: state } = await admin
-      .from("proctoring_state")
-      .select("*")
-      .eq("unit_id", membership.unit_id)
-      .eq("round_number", roundNumber)
-      .maybeSingle();
+    // Return current proctoring state (keyed by checkpoint_id, not round_number)
+    const { data: state } = checkpointId
+      ? await admin
+          .from("proctoring_state")
+          .select("*")
+          .eq("unit_id", membership.unit_id)
+          .eq("checkpoint_id", checkpointId)
+          .maybeSingle()
+      : { data: null };
 
     return NextResponse.json({
       active_device_blocked: false,
+      unit_id: membership.unit_id,
       tab_switches: state?.tab_switches ?? 0,
       tab_switch_limit: state?.tab_switch_limit ?? 3,
       locked_out: state?.locked_out ?? false,
@@ -164,39 +167,39 @@ export async function POST(request: Request) {
     severity = "high";
   }
 
-  // Fetch or initialize proctoring state
-  const { data: state } = await admin
-    .from("proctoring_state")
-    .select("*")
-    .eq("unit_id", membership.unit_id)
-    .eq("round_number", roundNumber)
-    .maybeSingle();
+  // Fetch or initialize proctoring state (keyed by checkpoint_id)
+  const { data: state } = checkpointId
+    ? await admin
+        .from("proctoring_state")
+        .select("*")
+        .eq("unit_id", membership.unit_id)
+        .eq("checkpoint_id", checkpointId)
+        .maybeSingle()
+    : { data: null };
 
   const currentSwitches = state?.tab_switches ?? 0;
   const limit = state?.tab_switch_limit ?? 3;
   const newSwitches = currentSwitches + 1;
   const willLockOut = newSwitches >= limit;
-  const currentAiFlags = state?.ai_flags_count ?? 0;
-  const newAiFlags = isAiFlag ? currentAiFlags + 1 : currentAiFlags;
 
-  const { data: updatedState, error: stateError } = await admin
-    .from("proctoring_state")
-    .upsert(
-      {
-        unit_id: membership.unit_id,
-        checkpoint_id: checkpointId,
-        round_number: roundNumber,
-        tab_switches: newSwitches,
-        tab_switch_limit: limit,
-        locked_out: willLockOut,
-        ai_flags_count: newAiFlags,
-        flagged_at: now.toISOString(),
-        updated_at: now.toISOString(),
-      },
-      { onConflict: "unit_id,round_number" }
-    )
-    .select()
-    .single();
+  // Upsert using the actual unique constraint (unit_id, checkpoint_id)
+  const { data: updatedState, error: stateError } = checkpointId
+    ? await admin
+        .from("proctoring_state")
+        .upsert(
+          {
+            unit_id: membership.unit_id,
+            checkpoint_id: checkpointId,
+            tab_switches: newSwitches,
+            tab_switch_limit: limit,
+            locked_out: willLockOut,
+            flagged_at: now.toISOString(),
+          },
+          { onConflict: "unit_id,checkpoint_id" }
+        )
+        .select()
+        .single()
+    : { data: null, error: null };
 
   if (stateError) {
     console.error("Failed to update proctoring_state:", stateError.message);
@@ -259,12 +262,23 @@ export async function GET(request: Request) {
     });
   }
 
-  const { data: state } = await admin
-    .from("proctoring_state")
-    .select("*")
-    .eq("unit_id", membership.unit_id)
+  // Look up checkpoint for this round
+  const { data: checkpoint } = await admin
+    .from("checkpoints")
+    .select("id")
     .eq("round_number", roundNumber)
     .maybeSingle();
+
+  const checkpointId = checkpoint?.id ?? null;
+
+  const { data: state } = checkpointId
+    ? await admin
+        .from("proctoring_state")
+        .select("*")
+        .eq("unit_id", membership.unit_id)
+        .eq("checkpoint_id", checkpointId)
+        .maybeSingle()
+    : { data: null };
 
   return NextResponse.json({
     unit_id: membership.unit_id,
