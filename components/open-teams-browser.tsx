@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import BentoCard from "@/components/bento-card";
 import KineticText from "@/components/kinetic-text";
 import { Users, Search, UserPlus, Clock, CheckCircle, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface OpenTeam {
   id: string;
@@ -36,7 +37,29 @@ export default function OpenTeamsBrowser() {
     }
   }, []);
 
-  useEffect(() => { fetchTeams(); }, [fetchTeams]);
+  useEffect(() => {
+    fetchTeams();
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel("open_teams_live")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "units",
+        },
+        () => {
+          fetchTeams();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchTeams]);
 
   const sendRequest = async (unitId: string) => {
     setSendingTo(unitId);

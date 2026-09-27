@@ -12,6 +12,7 @@ import Round2Arena from "@/components/event/round-2-arena";
 import AnnouncementsBar from "@/components/event/announcements-bar";
 import AnnouncementsModal from "@/components/announcements-modal";
 import EventHoldingBay from "@/components/event-holding-bay";
+import EventRealtimeSync from "@/components/event-realtime-sync";
 import SignOutButton from "@/components/sign-out-button";
 import BentoCard from "@/components/bento-card";
 import KineticText from "@/components/kinetic-text";
@@ -206,6 +207,7 @@ export default async function EventPage({
 
   return (
     <main className="min-h-screen px-3 xs:px-4 sm:px-6 py-6 sm:py-8 relative z-10 select-none selection:bg-[#00E5FF] selection:text-black">
+      <EventRealtimeSync unitId={membership.unit_id} />
       <div className="mx-auto max-w-5xl">
         {/* Navigation HUD */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8 pb-4 border-b border-white/5">
