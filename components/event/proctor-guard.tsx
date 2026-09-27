@@ -227,29 +227,37 @@ export default function ProctorGuard({
   }, [reportStrike]);
 
   // ── 2. Focus Loss (window.onblur - detects AI sidebars & extensions) ────
+  const hadFocusRef = useRef(true);
+
   useEffect(() => {
     let blurTimeout: NodeJS.Timeout;
 
     const handleBlur = () => {
       // Debounce focus check to avoid false positives on simple clicks
       blurTimeout = setTimeout(() => {
-        if (!document.hasFocus() && !document.hidden) {
+        if (!document.hasFocus() && !document.hidden && hadFocusRef.current) {
+          hadFocusRef.current = false;
           reportStrike("focus_loss");
         }
       }, 400);
     };
 
+    const handleFocus = () => {
+      hadFocusRef.current = true;
+    };
+
     window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
     return () => {
       window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
       clearTimeout(blurTimeout);
     };
   }, [reportStrike]);
 
   // ── 2b. Virtual Desktop Switch Detection (polling) ─────────────────────
   // Windows virtual desktop switches (Win+Ctrl+Left/Right) do NOT fire blur
-  // or visibilitychange events. Poll document.hasFocus() to catch them.
-  const hadFocusRef = useRef(true);
+  // or visibilitychange events. Poll document.hasFocus() every 1s to catch them.
   useEffect(() => {
     const pollFocus = setInterval(() => {
       const hasFocus = document.hasFocus();
@@ -258,10 +266,12 @@ export default function ProctorGuard({
       if (!hasFocus && !wasHidden && hadFocusRef.current) {
         // Transitioned from focused → unfocused while page is visible
         // (virtual desktop switch, or OS-level focus loss not caught by blur)
+        hadFocusRef.current = false;
         reportStrike("focus_loss");
+      } else if (hasFocus) {
+        hadFocusRef.current = true;
       }
-      hadFocusRef.current = hasFocus;
-    }, 2000);
+    }, 1000);
 
     return () => clearInterval(pollFocus);
   }, [reportStrike]);
