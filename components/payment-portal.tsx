@@ -21,7 +21,8 @@ import {
   ChevronUp,
   FileText,
   UserCheck,
-  Zap
+  Zap,
+  Lock
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -58,14 +59,17 @@ interface PaymentInfo {
     require_payment_for_event: boolean;
     payment_deadline: string;
     chitkara_portal_url?: string;
+    event_live?: boolean;
   };
 }
 
 export default function PaymentPortal({
   initialData,
+  eventLive,
   onClearanceGranted
 }: {
   initialData?: PaymentInfo | null;
+  eventLive?: boolean;
   onClearanceGranted?: () => void;
 }) {
   const [data, setData] = useState<PaymentInfo | null>(initialData || null);
@@ -270,6 +274,7 @@ export default function PaymentPortal({
 
   const { unit, members, memberCount, requiredAmount, isLeader } = data;
   const status = unit.payment_status;
+  const isEventLive = eventLive ?? data.settings.event_live ?? false;
   const chitkaraManualUrl = data.settings.chitkara_portal_url || "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/";
 
   // Sort members so leader is always #1
@@ -389,13 +394,25 @@ export default function PaymentPortal({
               </div>
             </div>
 
-            <a
-              href="/event"
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-bold text-sm tracking-wide uppercase transition-all shadow-[0_0_25px_rgba(16,185,129,0.3)] flex items-center gap-2 shrink-0 group"
-            >
-              <span>Enter Event Arena</span>
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </a>
+            {isEventLive ? (
+              <a
+                href="/event"
+                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-sm tracking-wide uppercase transition-all shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center gap-2.5 shrink-0 group animate-pulse"
+              >
+                <span>Enter Event Arena</span>
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1.5" />
+              </a>
+            ) : (
+              <div className="flex flex-col items-center sm:items-end gap-1.5 shrink-0">
+                <div className="px-5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono text-xs uppercase tracking-wider font-bold flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-emerald-400" />
+                  <span>Awaiting Launch Clock</span>
+                </div>
+                <span className="text-[10px] font-mono text-muted text-center sm:text-right">
+                  Arena gates unlock when organizers start the hunt clock.
+                </span>
+              </div>
+            )}
           </div>
         </motion.div>
       )}
@@ -447,7 +464,19 @@ export default function PaymentPortal({
               </div>
 
               {/* Direct Instant Action Button (Leader Only) */}
-              {isLeader ? (
+              {!unit.locked ? (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-mono space-y-2">
+                  <div className="flex items-center gap-2 font-bold uppercase text-amber-300">
+                    <Lock className="w-4 h-4 text-amber-400" />
+                    <span>Team Roster Lock Required</span>
+                  </div>
+                  <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                    {isLeader
+                      ? "Your team roster is currently open. Please click 'Lock & Finalize Team Roster' in the Team Management panel above to finalize your roster and enable fee payment."
+                      : "Your team roster is currently open. Please wait for your team leader to lock and finalize the roster to proceed with fee payment."}
+                  </p>
+                </div>
+              ) : isLeader ? (
                 <div className="space-y-3">
                   <a
                     href="/api/payment/chitkara/checkout"

@@ -25,7 +25,7 @@ export const revalidate = 0; // Fresh state on every request
 export default async function EventPage({
   searchParams,
 }: {
-  searchParams: { tab?: string };
+  searchParams: { tab?: string; admin_bypass?: string };
 }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -71,10 +71,10 @@ export default async function EventPage({
 
   const isPaymentRequired = settings?.require_payment_for_event ?? true;
   const isPaymentCleared = unit?.payment_status === "verified";
-  const showHoldingBay =
-    !["admin", "super_admin"].includes(profile.role) &&
-    isPaymentRequired &&
-    !isPaymentCleared;
+  const adminBypass =
+    searchParams?.admin_bypass === "1" &&
+    ["admin", "super_admin"].includes(profile.role);
+  const showHoldingBay = isPaymentRequired && !isPaymentCleared && !adminBypass;
 
   const totalRounds = settings?.total_rounds ?? 10;
   const roundPhase = settings?.current_round_phase ?? 1;

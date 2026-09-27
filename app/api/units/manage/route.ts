@@ -5,7 +5,8 @@ import { isChitkaraEmail } from "@/lib/validation";
 type ManageAction =
   | { action: "invite_member"; email: string }
   | { action: "remove_member"; user_id: string }
-  | { action: "cancel_invite"; user_id: string };
+  | { action: "cancel_invite"; user_id: string }
+  | { action: "lock_team" };
 
 /**
  * POST /api/units/manage — Leader manages their own team (pre-lock only)
@@ -78,6 +79,52 @@ export async function POST(request: Request) {
       if (!body.user_id) return NextResponse.json({ error: "user_id required" }, { status: 400 });
       await admin.from("unit_members").delete().eq("unit_id", leaderUnit.id).eq("user_id", body.user_id).in("status", ["pending"]);
       return NextResponse.json({ success: true, message: "Invite cancelled." });
+    }
+
+    case "lock_team": {
+      // 1. Fetch accepted members
+      const { data: acceptedMembers, error: memError } = await admin
+        .from("unit_members")
+        .select("id, user_id")
+        .eq("unit_id", leaderUnit.id)
+        .eq("status", "accepted");
+
+      if (memError || !acceptedMembers || acceptedMembers.length < 2) {
+        return NextResponse.json({
+          error: "Your team must have at least 2 accepted members before you can lock and finalize the roster."
+        }, { status: 400 });
+      }
+
+      if (acceptedMembers.length > 4) {
+        return NextResponse.json({
+          error: "A team cannot have more than 4 members."
+        }, { status: 400 });
+      }
+
+      // 2. Lock unit permanently
+      const { error: lockError } = await admin
+        .from("units")
+        .update({
+          locked: true,
+          locked_at: new Date().toISOString(),
+        })
+        .eq("id", leaderUnit.id);
+
+      if (lockError) {
+        return NextResponse.json({ error: "Failed to lock team roster. Please try again." }, { status: 500 });
+      }
+
+      // 3. Clean up any remaining pending invites so roster is finalized
+      await admin
+        .from("unit_members")
+        .delete()
+        .eq("unit_id", leaderUnit.id)
+        .eq("status", "pending");
+
+      return NextResponse.json({
+        success: true,
+        message: "Team roster locked and finalized! You can now proceed to fee payment clearance."
+      });
     }
 
     default:

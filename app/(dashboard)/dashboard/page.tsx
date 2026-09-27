@@ -255,43 +255,7 @@ export default async function DashboardPage() {
             )}
 
             {/* Operational Clearance & Payment Portal */}
-            <PaymentPortal />
-
-            {/* Event active/inactive portal link */}
-            {Boolean(
-              settings?.event_live &&
-              (unitData?.locked || ["admin", "super_admin", "checkpoint_staff"].includes(profile.role))
-            ) ? (
-              <a href="/event" className="block">
-                <BentoCard delay={0.5} glowColor="signal" className="p-6 sm:p-8 border border-[#00E5FF]/40 bg-[#00E5FF]/5 group cursor-pointer">
-                  <div className="absolute top-6 right-6 flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full bg-[#00E5FF] animate-ping" />
-                    <span className="h-3 w-3 rounded-full bg-[#00E5FF]" />
-                  </div>
-                  <h3 className="font-display text-2xl xs:text-3xl sm:text-4xl font-bold text-[#00E5FF] uppercase tracking-wider mb-2 sm:mb-3">
-                    THE HUNT IS LIVE
-                  </h3>
-                  <p className="text-muted font-body text-sm sm:text-base leading-relaxed group-hover:text-white transition-colors duration-300">
-                    The gates are open! Click here to enter the event arena.
-                  </p>
-                </BentoCard>
-              </a>
-            ) : (
-              <BentoCard delay={0.5} glowColor="default" className="p-6 sm:p-8 opacity-75 flex flex-col items-center text-center">
-                <h3 className="font-display text-xl sm:text-2xl font-bold text-muted uppercase tracking-wider mb-2 sm:mb-3">
-                  EVENT DORMANT
-                </h3>
-                <p className="text-muted text-sm font-body leading-relaxed max-w-sm">
-                  {!settings?.event_live
-                    ? "The hunt begins once the organizers start the countdown clock."
-                    : !unitData
-                    ? "Join or create a team to prepare for the live hunt arena."
-                    : !unitData.locked
-                    ? "Your team is registered! Registration must be locked (by your team leader or organizers) before entering the arena."
-                    : "Access to arena will unlock momentarily."}
-                </p>
-              </BentoCard>
-            )}
+            <PaymentPortal eventLive={Boolean(settings?.event_live)} />
 
             {/* Download Event Pass — shown when:
                 - Participants: team is locked

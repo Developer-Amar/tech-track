@@ -96,6 +96,42 @@ export default function CodeEditor({
     }
   };
 
+  const handleBeforeMount = (monaco: any) => {
+    // Define custom Tech Track Cyber Dark theme before editor mounts
+    monaco.editor.defineTheme("tech-track-dark", {
+      base: "vs-dark",
+      inherit: true,
+      rules: [
+        { token: "comment", foreground: "64748B", fontStyle: "italic" },
+        { token: "keyword", foreground: "FF1E56", fontStyle: "bold" },
+        { token: "string", foreground: "34D399" },
+        { token: "number", foreground: "F59E0B" },
+        { token: "delimiter", foreground: "94A3B8" },
+        { token: "type", foreground: "A78BFA" },
+        { token: "function", foreground: "38BDF8" },
+        { token: "variable", foreground: "F8FAFC" },
+      ],
+      colors: {
+        "editor.background": "#070912",
+        "editor.foreground": "#F8FAFC",
+        "editor.lineHighlightBackground": "#131726",
+        "editor.lineHighlightBorder": "#00000000",
+        "editorCursor.foreground": "#FF1E56",
+        "editorWhitespace.foreground": "#334155",
+        "editorIndentGuide.background": "#1E293B",
+        "editorIndentGuide.activeBackground": "#FF1E56",
+        "editorBracketMatch.background": "#FF1E5633",
+        "editorBracketMatch.border": "#FF1E56",
+        "editorError.foreground": "#EF4444",
+        "editorWarning.foreground": "#F59E0B",
+        "editorBracketHighlight.unexpectedBracket.foreground": "#EF4444",
+        "editorGutter.background": "#070912",
+        "editorLineNumber.foreground": "#475569",
+        "editorLineNumber.activeForeground": "#FF1E56",
+      },
+    });
+  };
+
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
 
@@ -124,45 +160,15 @@ export default function CodeEditor({
       }).catch((err) => console.warn("Paste telemetry error:", err));
     });
 
-    // Define custom Tech Track Cyber Dark theme
-    monaco.editor.defineTheme("tech-track-dark", {
-      base: "vs-dark",
-      inherit: true,
-      rules: [
-        { token: "comment", foreground: "64748B", fontStyle: "italic" },
-        { token: "keyword", foreground: "FF1E56", fontStyle: "bold" },
-        { token: "string", foreground: "34D399" },
-        { token: "number", foreground: "F59E0B" },
-        { token: "delimiter", foreground: "94A3B8" },
-        { token: "type", foreground: "A78BFA" },
-        { token: "function", foreground: "38BDF8" },
-        { token: "variable", foreground: "F8FAFC" },
-      ],
-      colors: {
-        "editor.background": "#070912",
-        "editor.foreground": "#F8FAFC",
-        "editor.lineHighlightBackground": "#131726",
-        "editorCursor.foreground": "#FF1E56",
-        "editorWhitespace.foreground": "#334155",
-        "editorIndentGuide.background": "#1E293B",
-        "editorIndentGuide.activeBackground": "#FF1E56",
-        "editorBracketMatch.background": "#FF1E5633",
-        "editorBracketMatch.border": "#FF1E56",
-        "editorError.foreground": "#EF4444",
-        "editorWarning.foreground": "#F59E0B",
-        "editorBracketHighlight.unexpectedBracket.foreground": "#EF4444",
-        "editorGutter.background": "#070912",
-        "editorLineNumber.foreground": "#475569",
-        "editorLineNumber.activeForeground": "#FF1E56",
-      },
-    });
-
     monaco.editor.setTheme("tech-track-dark");
+
+    // Immediately focus editor for smooth typing
+    editor.focus();
 
     // Force layout update after mounting to ensure perfect canvas bounds and native cursor tracking
     setTimeout(() => {
       editor.layout();
-    }, 100);
+    }, 50);
 
     const handleResize = () => {
       editor.layout();
@@ -248,7 +254,10 @@ export default function CodeEditor({
             tabSize: 4,
             insertSpaces: true,
             lineNumbers: "on",
+            lineNumbersMinChars: 3,
+            glyphMargin: false,
             renderLineHighlight: "all",
+            renderLineHighlightOnlyWhenFocus: false,
             bracketPairColorization: {
               enabled: true,
             },
@@ -268,7 +277,7 @@ export default function CodeEditor({
             snippetSuggestions: "inline",
             padding: { top: 12, bottom: 12 },
             cursorBlinking: "blink",
-            cursorSmoothCaretAnimation: "off",
+            cursorSmoothCaretAnimation: "on",
             cursorStyle: "line",
             cursorWidth: 2,
           }
@@ -283,6 +292,8 @@ export default function CodeEditor({
             tabSize: 4,
             insertSpaces: true,
             lineNumbers: "on",
+            lineNumbersMinChars: 3,
+            glyphMargin: false,
             renderLineHighlight: "none",
             bracketPairColorization: { enabled: false },
             matchBrackets: "never",
@@ -295,7 +306,7 @@ export default function CodeEditor({
             acceptSuggestionOnEnter: "off",
             padding: { top: 12, bottom: 12 },
             cursorBlinking: "blink",
-            cursorSmoothCaretAnimation: "off",
+            cursorSmoothCaretAnimation: "on",
             cursorStyle: "line",
             cursorWidth: 2,
           },
@@ -433,8 +444,10 @@ export default function CodeEditor({
         <div className="h-[320px] xs:h-[360px] sm:h-[400px] md:h-[440px]">
           <Editor
             height="100%"
+            theme="tech-track-dark"
             language={currentMonacoLang}
             defaultValue={STARTER_TEMPLATES["python"] ?? ""}
+            beforeMount={handleBeforeMount}
             onChange={(val) => {
               codeRef.current = val ?? "";
               const valid = Boolean(val?.trim());

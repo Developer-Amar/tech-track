@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     // 3. Fetch unit details
     const { data: unit, error: unitError } = await admin
       .from("units")
-      .select("id, name, leader_id, payment_status, payment_utr")
+      .select("id, name, leader_id, payment_status, payment_utr, locked")
       .eq("id", membership.unit_id)
       .single();
 
@@ -71,6 +71,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Access Denied: Only the designated Team Leader can submit payment clearance." },
         { status: 403 }
+      );
+    }
+
+    // 5. Team Roster Lock Check
+    if (!unit.locked) {
+      return NextResponse.json(
+        { error: "Your team roster must be locked and finalized before submitting payment." },
+        { status: 400 }
       );
     }
 

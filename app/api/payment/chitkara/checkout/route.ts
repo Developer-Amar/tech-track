@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     // 2. Fetch unit details
     const { data: unit, error: unitError } = await admin
       .from("units")
-      .select("id, name, leader_id, payment_status, chitkara_order_token")
+      .select("id, name, leader_id, payment_status, chitkara_order_token, locked")
       .eq("id", membership.unit_id)
       .single();
 
@@ -75,6 +75,11 @@ export async function GET(request: NextRequest) {
     // 3. Strict Leader Check
     if (unit.leader_id !== user.id) {
       return NextResponse.redirect(`${origin}/dashboard?error=leader_only_payment`, 302);
+    }
+
+    // 4. Team Roster Lock Check
+    if (!unit.locked) {
+      return NextResponse.redirect(`${origin}/dashboard?error=team_lock_required`, 302);
     }
 
     // 4. Fetch all accepted members
