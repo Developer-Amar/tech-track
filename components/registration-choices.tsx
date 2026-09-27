@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import TeamForm from "./team-form";
 import InviteBanner from "./invite-banner";
 import OpenTeamsBrowser from "./open-teams-browser";
 import { Shield, Users, Search } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 type Invite = {
   unit_id: string;
@@ -15,11 +17,70 @@ type Invite = {
 export default function RegistrationChoices({
   registrationOpen,
   pendingInvites,
+  userId,
 }: {
   registrationOpen: boolean;
   pendingInvites: Invite[];
+  userId?: string;
 }) {
+  const router = useRouter();
   const [view, setView] = useState<"choose" | "lead" | "join" | "browse">("choose");
+  const [invites, setInvites] = useState<Invite[]>(pendingInvites);
+
+  useEffect(() => {
+    setInvites(pendingInvites);
+  }, [pendingInvites]);
+
+  const fetchInvites = useCallback(async () => {
+    try {
+      const res = await fetch("/api/units/respond");
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.invites)) {
+          setInvites(json.invites);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch pending invites:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    let channel: any;
+    const setupListener = async () => {
+      let currentId = userId;
+      if (!currentId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        currentId = user?.id;
+      }
+      if (!currentId) return;
+
+      channel = supabase
+        .channel(`registration_invites_${currentId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "unit_members",
+            filter: `user_id=eq.${currentId}`
+          },
+          () => {
+            fetchInvites();
+            router.refresh();
+          }
+        )
+        .subscribe();
+    };
+
+    setupListener();
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [userId, fetchInvites, router]);
 
   if (!registrationOpen) {
     return (
@@ -60,7 +121,7 @@ export default function RegistrationChoices({
           </button>
         </div>
 
-        {pendingInvites.length === 0 ? (
+        {invites.length === 0 ? (
           <div className="text-center py-8">
             <Users className="w-12 h-12 text-dormant mx-auto mb-4 opacity-40" />
             <p className="text-dormant text-sm font-body leading-relaxed">
@@ -69,7 +130,7 @@ export default function RegistrationChoices({
           </div>
         ) : (
           <div className="space-y-3">
-            {pendingInvites.map((invite) => (
+            {invites.map((invite) => (
               <InviteBanner key={invite.unit_id} invite={invite} />
             ))}
           </div>
@@ -150,11 +211,11 @@ export default function RegistrationChoices({
           <p className="text-dormant text-xs font-body leading-relaxed">
             View and respond to team invites from other players.
           </p>
-          {pendingInvites.length > 0 && (
+          {invites.length > 0 && (
             <span className="absolute top-4 right-4 flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-gold animate-ping" />
               <span className="font-mono text-[9px] text-gold font-bold tracking-widest">
-                {pendingInvites.length} INVITE{pendingInvites.length > 1 ? "S" : ""}
+                {invites.length} INVITE{invites.length > 1 ? "S" : ""}
               </span>
             </span>
           )}

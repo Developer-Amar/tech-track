@@ -111,7 +111,7 @@ export async function GET() {
         payment_upi_id: settings?.payment_upi_id || "amardeveloper3@okhdfcbank",
         payment_payee_name: settings?.payment_payee_name || "Tech Trek IEI x IETE",
         require_payment_for_event: settings?.require_payment_for_event ?? true,
-        payment_deadline: settings?.payment_deadline || "2026-09-30T11:00:00+05:30",
+        payment_deadline: settings?.payment_deadline || "2026-10-07T11:00:00+05:30",
         event_live: Boolean(settings?.event_live)
       }
     });

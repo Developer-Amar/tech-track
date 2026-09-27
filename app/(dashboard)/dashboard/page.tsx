@@ -14,6 +14,7 @@ import LeaderTeamControls from "@/components/leader-team-controls";
 import AnnouncementsModal from "@/components/announcements-modal";
 import UserAvatar from "@/components/user-avatar";
 import PaymentPortal from "@/components/payment-portal";
+import DashboardRealtimeSync from "@/components/dashboard-realtime-sync";
 import { User, Activity, AlertCircle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -162,6 +163,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="min-h-screen px-3 xs:px-4 sm:px-6 py-6 sm:py-12 relative z-10 selection:bg-[#00E5FF] selection:text-black">
+      <DashboardRealtimeSync userId={user.id} unitId={unitData?.id || null} />
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 sm:mb-8 pb-4 select-none border-b border-white/5 gap-4">
@@ -218,7 +220,7 @@ export default async function DashboardPage() {
             {/* Registration choices */}
             {!unitData ? (
               <BentoCard delay={0.4} className="p-1" glowColor="default">
-                <RegistrationChoices registrationOpen={registrationOpen} pendingInvites={pendingInvites} />
+                <RegistrationChoices registrationOpen={registrationOpen} pendingInvites={pendingInvites} userId={user.id} />
               </BentoCard>
             ) : unitData.locked ? (
               <BentoCard delay={0.3} glowColor="signal" className="p-1">

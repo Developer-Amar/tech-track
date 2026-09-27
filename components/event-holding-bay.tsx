@@ -45,9 +45,9 @@ export default function EventHoldingBay({
   const [isUnlocked, setIsUnlocked] = useState(unit.payment_status === "verified");
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
-  // Countdown to Sept 30, 11:00 AM IST
+  // Countdown to Oct 7, 11:00 AM IST (or dynamic payment_deadline)
   useEffect(() => {
-    const target = new Date("2026-09-30T11:00:00+05:30").getTime();
+    const target = new Date(settings?.payment_deadline || "2026-10-07T11:00:00+05:30").getTime();
 
     const updateTimer = () => {
       const now = Date.now();

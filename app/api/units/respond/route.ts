@@ -118,3 +118,57 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true });
 }
+
+/**
+ * GET /api/units/respond
+ *
+ * Returns all active pending invites for the authenticated user.
+ */
+export async function GET() {
+  const supabase = createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const admin = createAdminClient();
+  const { data: pendingMemberships } = await admin
+    .from("unit_members")
+    .select("unit_id")
+    .eq("user_id", user.id)
+    .eq("status", "pending");
+
+  const pendingInvites: {
+    unit_id: string;
+    team_name: string | null;
+    leader_name: string;
+  }[] = [];
+
+  if (pendingMemberships && pendingMemberships.length > 0) {
+    const unitIds = pendingMemberships.map((pm) => pm.unit_id);
+    const { data: inviteUnits } = await admin
+      .from("units")
+      .select("id, name, leader_id")
+      .in("id", unitIds);
+
+    if (inviteUnits && inviteUnits.length > 0) {
+      const leaderIds = inviteUnits.map((u) => u.leader_id);
+      const { data: leaders } = await admin
+        .from("users")
+        .select("id, name")
+        .in("id", leaderIds);
+
+      const leaderMap = new Map((leaders ?? []).map((l) => [l.id, l.name]));
+
+      for (const inviteUnit of inviteUnits) {
+        pendingInvites.push({
+          unit_id: inviteUnit.id,
+          team_name: inviteUnit.name,
+          leader_name: leaderMap.get(inviteUnit.leader_id) ?? "Someone",
+        });
+      }
+    }
+  }
+
+  return NextResponse.json({ invites: pendingInvites });
+}

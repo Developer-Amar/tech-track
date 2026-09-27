@@ -128,26 +128,28 @@ export default function PaymentPortal({
     }
   }, []);
 
-  // Subscribe to real-time changes on unit payment status
+  // Subscribe to real-time changes on unit (locked, payment status) and members
   useEffect(() => {
     if (!data?.unit?.id) return;
+    const unitId = data.unit.id;
     const supabase = createClient();
 
     const channel = supabase
-      .channel(`unit_payment_${data.unit.id}`)
+      .channel(`unit_payment_${unitId}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "units",
-          filter: `id=eq.${data.unit.id}`
+          filter: `id=eq.${unitId}`
         },
         (payload) => {
           const updated = payload.new as any;
           setData((prev) => {
             if (!prev) return prev;
             const nextStatus = updated.payment_status || prev.unit.payment_status;
+            const nextLocked = updated.locked !== undefined ? Boolean(updated.locked) : prev.unit.locked;
             if (nextStatus === "verified" && onClearanceGranted) {
               onClearanceGranted();
             }
@@ -155,6 +157,7 @@ export default function PaymentPortal({
               ...prev,
               unit: {
                 ...prev.unit,
+                locked: nextLocked,
                 payment_status: nextStatus,
                 payment_utr: updated.payment_utr ?? prev.unit.payment_utr,
                 payment_amount: updated.payment_amount ?? prev.unit.payment_amount,
@@ -164,6 +167,19 @@ export default function PaymentPortal({
               }
             };
           });
+          fetchPaymentInfo();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "unit_members",
+          filter: `unit_id=eq.${unitId}`
+        },
+        () => {
+          fetchPaymentInfo();
         }
       )
       .subscribe();
@@ -171,7 +187,7 @@ export default function PaymentPortal({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [data?.unit?.id, onClearanceGranted]);
+  }, [data?.unit?.id, onClearanceGranted, fetchPaymentInfo]);
 
   /**
    * Copy individual field
@@ -384,7 +400,7 @@ export default function PaymentPortal({
               <div>
                 <h3 className="text-lg font-bold text-emerald-300">Official Clearance Granted // Gate Unlocked</h3>
                 <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                  Team <span className="text-white font-mono font-bold">{unit.name}</span> has fulfilled all university registration requirements. Your team is officially licensed for live competition entry on September 30th.
+                  Team <span className="text-white font-mono font-bold">{unit.name}</span> has fulfilled all university registration requirements. Your team is officially licensed for live competition entry on October 7th.
                 </p>
                 {unit.payment_utr && (
                   <div className="mt-2 inline-flex items-center gap-2 px-2.5 py-1 rounded bg-black/40 border border-emerald-500/30 font-mono text-xs text-emerald-400">

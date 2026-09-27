@@ -67,7 +67,7 @@ export default function PaymentsPanel({ isSuperAdmin }: { isSuperAdmin: boolean 
     payment_upi_id: "amardeveloper3@okhdfcbank",
     payment_payee_name: "Tech Trek IEI x IETE",
     require_payment_for_event: true,
-    payment_deadline: "2026-09-30T11:00:00+05:30",
+    payment_deadline: "2026-10-07T11:00:00+05:30",
     chitkara_portal_url: "https://paym.chitkara.edu.in/online-chitkara-events/tech-trek-2.O/"
   });
 

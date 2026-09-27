@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import BentoCard from "@/components/bento-card";
 import { UserPlus, UserMinus, XCircle, Loader2, Send, Settings, Lock, AlertTriangle, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 interface Member {
   user_id: string;
@@ -24,6 +25,63 @@ export default function LeaderTeamControls({
   const [loading, setLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showLockModal, setShowLockModal] = useState(false);
+  const [memberList, setMemberList] = useState<Member[]>(members);
+
+  useEffect(() => {
+    setMemberList(members);
+  }, [members]);
+
+  const fetchRoster = useCallback(async () => {
+    try {
+      const res = await fetch('/api/units/manage');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.hasTeam && Array.isArray(json.members)) {
+          setMemberList(json.members);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch team roster:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!unitId) return;
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel(`leader_controls_${unitId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "unit_members",
+          filter: `unit_id=eq.${unitId}`,
+        },
+        () => {
+          fetchRoster();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "units",
+          filter: `id=eq.${unitId}`,
+        },
+        () => {
+          fetchRoster();
+          router.refresh();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [unitId, fetchRoster, router]);
 
   const doAction = async (action: string, extra: Record<string, string> = {}) => {
     setLoading(action + (extra.user_id ?? extra.email ?? ''));
@@ -39,6 +97,7 @@ export default function LeaderTeamControls({
         setMessage({ type: 'success', text: data.message ?? 'Done' });
         setEmail("");
         setShowLockModal(false);
+        fetchRoster();
         router.refresh();
       } else {
         setMessage({ type: 'error', text: data.error ?? 'Failed' });
@@ -50,8 +109,8 @@ export default function LeaderTeamControls({
     }
   };
 
-  const acceptedMembers = members.filter(m => m.status === 'accepted');
-  const pendingMembers = members.filter(m => m.status === 'pending');
+  const acceptedMembers = memberList.filter(m => m.status === 'accepted');
+  const pendingMembers = memberList.filter(m => m.status === 'pending');
   const canLock = acceptedMembers.length >= 2 && acceptedMembers.length <= 4;
 
   return (

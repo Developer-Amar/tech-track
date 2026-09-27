@@ -131,3 +131,69 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
 }
+
+/**
+ * GET /api/units/manage
+ *
+ * Returns authoritative roster and lock status for the authenticated user's active team.
+ */
+export async function GET() {
+  const supabase = createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const admin = createAdminClient();
+
+  // Find user's active membership
+  const { data: membership } = await admin
+    .from("unit_members")
+    .select("unit_id")
+    .eq("user_id", user.id)
+    .eq("status", "accepted")
+    .maybeSingle();
+
+  if (!membership) {
+    return NextResponse.json({ hasTeam: false, unit: null, members: [] });
+  }
+
+  const { data: unit } = await admin
+    .from("units")
+    .select("id, unit_type, name, leader_id, locked")
+    .eq("id", membership.unit_id)
+    .single();
+
+  if (!unit) {
+    return NextResponse.json({ hasTeam: false, unit: null, members: [] });
+  }
+
+  const { data: members } = await admin
+    .from("unit_members")
+    .select("user_id, status")
+    .eq("unit_id", unit.id);
+
+  const memberDetails = [];
+  if (members) {
+    for (const member of members) {
+      const { data: memberUser } = await admin
+        .from("users")
+        .select("name, email")
+        .eq("id", member.user_id)
+        .single();
+
+      memberDetails.push({
+        user_id: member.user_id,
+        name: memberUser?.name ?? "Unknown",
+        email: memberUser?.email ?? "",
+        status: member.status,
+        is_leader: member.user_id === unit.leader_id,
+      });
+    }
+  }
+
+  return NextResponse.json({
+    hasTeam: true,
+    unit,
+    isLeader: unit.leader_id === user.id,
+    members: memberDetails,
+  });
+}

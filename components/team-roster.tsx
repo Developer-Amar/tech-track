@@ -23,27 +23,38 @@ export default function TeamRoster({
   const [members, setMembers] = useState<Member[]>(initialMembers);
 
   useEffect(() => {
+    setMembers(initialMembers);
+  }, [initialMembers]);
+
+  useEffect(() => {
     const supabase = createClient();
+
+    const fetchLatestRoster = async () => {
+      try {
+        const res = await fetch("/api/units/manage");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.hasTeam && Array.isArray(json.members)) {
+            setMembers(json.members);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to re-fetch roster in TeamRoster:", err);
+      }
+    };
 
     const channel = supabase
       .channel(`roster-${unitId}`)
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
           table: "unit_members",
           filter: `unit_id=eq.${unitId}`,
         },
-        (payload) => {
-          const updated = payload.new as { user_id: string; status: string };
-          setMembers((prev) =>
-            prev.map((m) =>
-              m.user_id === updated.user_id
-                ? { ...m, status: updated.status as Member["status"] }
-                : m
-            )
-          );
+        () => {
+          fetchLatestRoster();
         }
       )
       .subscribe();
