@@ -87,12 +87,47 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Check answer (location_name, case-insensitive, trimmed) ───────────
-  const correct =
-    answer.trim().toLowerCase() === checkpoint.location_name.trim().toLowerCase();
+  // ── Normalize helper for flexible comparison ─────────────────────────
+  const normalize = (str: string) =>
+    str
+      .toLowerCase()
+      .trim()
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+      .replace(/\s+/g, " ");
+
+  const cleanUserAnswer = answer.trim();
+  const normalizedUser = normalize(cleanUserAnswer);
+
+  // ── Retrieve alternate accepted answers from riddles table ─────────────
+  let alternateAnswers: string[] = [];
+  try {
+    const { data: riddle, error: riddleErr } = await admin
+      .from("riddles")
+      .select("id, alternate_answers")
+      .eq("checkpoint_id", checkpoint.id)
+      .maybeSingle();
+
+    if (!riddleErr && riddle?.alternate_answers && Array.isArray(riddle.alternate_answers)) {
+      alternateAnswers = riddle.alternate_answers;
+    }
+  } catch (err) {
+    console.warn("Could not retrieve alternate_answers for riddle:", err);
+  }
+
+  // ── Check answer against location_name AND all alternate answers ──────
+  const candidateAnswers = [
+    checkpoint.location_name,
+    ...alternateAnswers,
+  ].filter(Boolean);
+
+  const correct = candidateAnswers.some((candidate) => {
+    const rawMatch = candidate.trim().toLowerCase() === cleanUserAnswer.toLowerCase();
+    const normMatch = normalize(candidate) === normalizedUser;
+    return rawMatch || normMatch;
+  });
 
   if (!correct) {
-    return NextResponse.json({ correct: false, message: "Incorrect. Try again!" });
+    return NextResponse.json({ correct: false, message: "Incorrect location answer. Check the riddle or sub-hints and try again!" });
   }
 
   // ── Create/update round_progress ──────────────────────────────────────

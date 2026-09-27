@@ -136,6 +136,7 @@ export default async function EventPage({
   }
 
   let riddleText = "";
+  let riddleHints: string[] = [];
   let locationName = "";
   let codingPrompt = "";
   let sampleInput = null;
@@ -150,12 +151,27 @@ export default async function EventPage({
       locationName = activeCheckpoint.location_name;
 
       if (currentStep === "riddle") {
-        const { data: riddle } = await admin
-          .from("riddles")
-          .select("content")
-          .eq("checkpoint_id", activeCheckpoint.id)
-          .single();
-        riddleText = riddle?.content ?? "No riddle configured for this round.";
+        try {
+          const { data: riddle, error: rErr } = await admin
+            .from("riddles")
+            .select("content, hints")
+            .eq("checkpoint_id", activeCheckpoint.id)
+            .maybeSingle();
+
+          if (!rErr && riddle) {
+            riddleText = riddle.content ?? "No riddle configured for this round.";
+            riddleHints = Array.isArray(riddle.hints) ? riddle.hints : [];
+          } else {
+            const { data: fallbackRiddle } = await admin
+              .from("riddles")
+              .select("content")
+              .eq("checkpoint_id", activeCheckpoint.id)
+              .maybeSingle();
+            riddleText = fallbackRiddle?.content ?? "No riddle configured for this round.";
+          }
+        } catch {
+          riddleText = "No riddle configured for this round.";
+        }
       } else if (currentStep === "code") {
         const { data: question } = await admin
           .from("coding_questions")
@@ -272,6 +288,7 @@ export default async function EventPage({
                     <RiddleChallenge
                       round={currentRound}
                       riddleText={riddleText}
+                      hints={riddleHints}
                     />
                   )}
 

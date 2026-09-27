@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Editor, { OnMount } from "@monaco-editor/react";
 import { STARTER_TEMPLATES } from "@/lib/ide-templates";
@@ -34,7 +34,8 @@ export default function CodeEditor({
 }) {
   const router = useRouter();
   const [language, setLanguage] = useState<string>("python");
-  const [code, setCode] = useState<string>(() => STARTER_TEMPLATES["python"] ?? "");
+  const codeRef = useRef<string>(STARTER_TEMPLATES["python"] ?? "");
+  const [hasCode, setHasCode] = useState<boolean>(true);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<{
     all_passed: boolean;
@@ -64,21 +65,28 @@ export default function CodeEditor({
   // Initialize code with template if empty on mount or language switch
   const handleLanguageChange = (newLang: string) => {
     setLanguage(newLang);
+    const currentCode = editorRef.current ? editorRef.current.getValue() : codeRef.current;
     const currentIsTemplate = Object.values(STARTER_TEMPLATES).some(
-      (t) => t.trim() === code.trim()
+      (t) => t.trim() === currentCode.trim()
     );
-    if (!code.trim() || currentIsTemplate) {
-      setCode(STARTER_TEMPLATES[newLang] ?? "");
+    if (!currentCode.trim() || currentIsTemplate) {
+      const template = STARTER_TEMPLATES[newLang] ?? "";
+      codeRef.current = template;
+      if (editorRef.current) {
+        editorRef.current.setValue(template);
+      }
+      setHasCode(Boolean(template.trim()));
     }
   };
 
   const handleResetTemplate = () => {
     if (confirm(`Reset editor to standard ${language.toUpperCase()} starter template? Your current edits will be replaced.`)) {
       const template = STARTER_TEMPLATES[language] ?? "";
-      setCode(template);
+      codeRef.current = template;
       if (editorRef.current) {
         editorRef.current.setValue(template);
       }
+      setHasCode(Boolean(template.trim()));
     }
   };
 
@@ -150,10 +158,23 @@ export default function CodeEditor({
     });
 
     monaco.editor.setTheme("tech-track-dark");
+
+    // Force layout update after mounting to ensure perfect canvas bounds and native cursor tracking
+    setTimeout(() => {
+      editor.layout();
+    }, 100);
+
+    const handleResize = () => {
+      editor.layout();
+    };
+    window.addEventListener("resize", handleResize);
+    editor.onDidDispose(() => {
+      window.removeEventListener("resize", handleResize);
+    });
   };
 
   async function handleSubmit() {
-    const codeToSubmit = editorRef.current ? editorRef.current.getValue() : code;
+    const codeToSubmit = editorRef.current ? editorRef.current.getValue() : codeRef.current;
     if (!codeToSubmit.trim()) return;
 
     setLoading(true);
@@ -213,63 +234,73 @@ export default function CodeEditor({
     ? languages.find((l) => l.value === language)?.monacoLang ?? "python"
     : "plaintext";
 
-  const monacoOptions: any = ideSmartFeatures
-    ? {
-        fontSize: 14,
-        fontFamily: "'JetBrains Mono', monospace",
-        minimap: { enabled: false },
-        scrollBeyondLastLine: false,
-        automaticLayout: true,
-        wordWrap: "on",
-        wrappingIndent: "indent",
-        tabSize: 4,
-        insertSpaces: true,
-        lineNumbers: "on",
-        renderLineHighlight: "all",
-        bracketPairColorization: {
-          enabled: true,
-        },
-        matchBrackets: "always",
-        autoClosingBrackets: "always",
-        autoClosingQuotes: "always",
-        autoClosingOvertype: "always",
-        autoIndent: "full",
-        formatOnType: true,
-        formatOnPaste: true,
-        quickSuggestions: {
-          other: true,
-          comments: false,
-          strings: false,
-        },
-        acceptSuggestionOnEnter: "on",
-        snippetSuggestions: "inline",
-        padding: { top: 12, bottom: 12 },
-        cursorBlinking: "smooth",
-        cursorSmoothCaretAnimation: "on",
-      }
-    : {
-        fontSize: 14,
-        fontFamily: "'JetBrains Mono', monospace",
-        minimap: { enabled: false },
-        scrollBeyondLastLine: false,
-        automaticLayout: true,
-        wordWrap: "on",
-        wrappingIndent: "indent",
-        tabSize: 4,
-        insertSpaces: true,
-        lineNumbers: "on",
-        renderLineHighlight: "none",
-        bracketPairColorization: { enabled: false },
-        matchBrackets: "never",
-        autoClosingBrackets: "never",
-        autoClosingQuotes: "never",
-        autoClosingOvertype: "never",
-        autoIndent: "none",
-        quickSuggestions: false,
-        suggestOnTriggerCharacters: false,
-        acceptSuggestionOnEnter: "off",
-        padding: { top: 12, bottom: 12 },
-      };
+  const monacoOptions: any = useMemo(
+    () =>
+      ideSmartFeatures
+        ? {
+            fontSize: 14,
+            fontFamily: "'JetBrains Mono', monospace",
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            wordWrap: "on",
+            wrappingIndent: "indent",
+            tabSize: 4,
+            insertSpaces: true,
+            lineNumbers: "on",
+            renderLineHighlight: "all",
+            bracketPairColorization: {
+              enabled: true,
+            },
+            matchBrackets: "always",
+            autoClosingBrackets: "always",
+            autoClosingQuotes: "always",
+            autoClosingOvertype: "always",
+            autoIndent: "full",
+            formatOnType: true,
+            formatOnPaste: true,
+            quickSuggestions: {
+              other: true,
+              comments: false,
+              strings: false,
+            },
+            acceptSuggestionOnEnter: "on",
+            snippetSuggestions: "inline",
+            padding: { top: 12, bottom: 12 },
+            cursorBlinking: "blink",
+            cursorSmoothCaretAnimation: "off",
+            cursorStyle: "line",
+            cursorWidth: 2,
+          }
+        : {
+            fontSize: 14,
+            fontFamily: "'JetBrains Mono', monospace",
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            wordWrap: "on",
+            wrappingIndent: "indent",
+            tabSize: 4,
+            insertSpaces: true,
+            lineNumbers: "on",
+            renderLineHighlight: "none",
+            bracketPairColorization: { enabled: false },
+            matchBrackets: "never",
+            autoClosingBrackets: "never",
+            autoClosingQuotes: "never",
+            autoClosingOvertype: "never",
+            autoIndent: "none",
+            quickSuggestions: false,
+            suggestOnTriggerCharacters: false,
+            acceptSuggestionOnEnter: "off",
+            padding: { top: 12, bottom: 12 },
+            cursorBlinking: "blink",
+            cursorSmoothCaretAnimation: "off",
+            cursorStyle: "line",
+            cursorWidth: 2,
+          },
+    [ideSmartFeatures]
+  );
 
   return (
     <BentoCard glowColor="default" className="rounded-2xl p-6 md:p-8 text-left relative overflow-hidden group">
@@ -403,8 +434,14 @@ export default function CodeEditor({
           <Editor
             height="100%"
             language={currentMonacoLang}
-            value={code}
-            onChange={(val) => setCode(val ?? "")}
+            defaultValue={STARTER_TEMPLATES["python"] ?? ""}
+            onChange={(val) => {
+              codeRef.current = val ?? "";
+              const valid = Boolean(val?.trim());
+              if (valid !== hasCode) {
+                setHasCode(valid);
+              }
+            }}
             onMount={handleEditorDidMount}
             options={monacoOptions}
             loading={
@@ -420,7 +457,7 @@ export default function CodeEditor({
       {/* Submit Action */}
       <button
         onClick={handleSubmit}
-        disabled={loading || !code.trim()}
+        disabled={loading || !hasCode}
         className="w-full min-h-[48px] mt-5 btn-cyber px-4 py-3.5 rounded-xl text-xs sm:text-sm uppercase font-bold tracking-widest"
       >
         {loading ? "COMPILING & EXECUTING TEST SUITES..." : "RUN & SUBMIT CODE"}

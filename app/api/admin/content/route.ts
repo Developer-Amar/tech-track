@@ -14,8 +14,8 @@ export async function POST(request: Request) {
   if (authError || !user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
-  if (profile?.role !== "super_admin") {
-    return NextResponse.json({ error: "Super Admin only" }, { status: 403 });
+  if (!profile || !["admin", "super_admin"].includes(profile.role)) {
+    return NextResponse.json({ error: "Access denied: Admins only" }, { status: 403 });
   }
 
   let body: { entity?: string; action: string; data?: Record<string, any> };
@@ -26,6 +26,10 @@ export async function POST(request: Request) {
   }
 
   const { entity, action, data } = body;
+
+  if (["add_round", "remove_last_round"].includes(action) && profile.role !== "super_admin") {
+    return NextResponse.json({ error: "Super Admin authorization required to add or remove rounds." }, { status: 403 });
+  }
 
   const admin = createAdminClient();
 

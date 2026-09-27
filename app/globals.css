@@ -249,3 +249,55 @@ html.lenis, html.lenis body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--signal-color);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MONACO CODE EDITOR UI/UX REPAIR & CURSOR STABILIZATION
+   1. Eliminates the visible white textarea box & resize handle
+   2. Keeps the textarea invisible & properly positioned behind Monaco canvas
+   3. Stabilizes crisp cursor rendering and mouse click selection
+   ══════════════════════════════════════════════════════════════════════════ */
+.monaco-editor,
+.monaco-editor * {
+  box-sizing: border-box;
+}
+
+/* Hardened suppression of the hidden IME/input textarea inside Monaco */
+.monaco-editor .inputarea,
+.monaco-editor textarea.inputarea,
+.monaco-editor textarea {
+  opacity: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: transparent !important;
+  border: 0 !important;
+  border-width: 0 !important;
+  border-style: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  resize: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  clip: rect(1px, 1px, 1px, 1px) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  z-index: -1 !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure Monaco canvas containers and cursors render at full fidelity */
+.monaco-editor .overflow-guard {
+  position: relative !important;
+  border-radius: 0.75rem;
+}
+
+.monaco-editor .cursors-layer .cursor {
+  opacity: 1 !important;
+  visibility: visible !important;
+}

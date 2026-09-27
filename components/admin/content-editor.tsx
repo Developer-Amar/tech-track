@@ -4,7 +4,13 @@ import { useState, useEffect } from "react";
 
 type ContentData = {
   checkpoints: Array<{ id: string; location_name: string; round_number: number }>;
-  riddles: Array<{ id: string; checkpoint_id: string; content: string }>;
+  riddles: Array<{
+    id: string;
+    checkpoint_id: string;
+    content: string;
+    alternate_answers?: string[];
+    hints?: string[];
+  }>;
   questions: Array<{ id: string; checkpoint_id: string; prompt: string; sample_input: string; sample_output: string }>;
   test_cases: Array<{ id: string; question_id: string; input: string; expected_output: string; is_visible: boolean }>;
   is_locked?: boolean;
@@ -31,7 +37,7 @@ export default function ContentEditor() {
     setLoading(false);
   }
 
-  async function saveField(entity: string, id: string, field: string, value: string) {
+  async function saveField(entity: string, id: string, field: string, value: any) {
     if (isLocked) return;
     setSaving(true);
     setMsg(null);
@@ -175,21 +181,80 @@ export default function ContentEditor() {
               isLocked={isLocked}
             />
 
-            {/* Riddle */}
+            {/* Riddle & Alternative Answers & Hints */}
             {riddle && (
-              <EditableField
-                label="Riddle Content"
-                value={riddle.content}
-                fieldKey={`riddle-${riddle.id}-content`}
-                editingField={editingField}
-                editValue={editValue}
-                setEditingField={setEditingField}
-                setEditValue={setEditValue}
-                onSave={(val) => saveField("riddles", riddle.id, "content", val)}
-                saving={saving}
-                isLocked={isLocked}
-                multiline
-              />
+              <div className="space-y-4">
+                <EditableField
+                  label="Riddle Content"
+                  value={riddle.content}
+                  fieldKey={`riddle-${riddle.id}-content`}
+                  editingField={editingField}
+                  editValue={editValue}
+                  setEditingField={setEditingField}
+                  setEditValue={setEditValue}
+                  onSave={(val) => saveField("riddles", riddle.id, "content", val)}
+                  saving={saving}
+                  isLocked={isLocked}
+                  multiline
+                />
+
+                {/* Accepted Alternative Answers (Array) */}
+                <AlternateAnswersEditor
+                  answers={riddle.alternate_answers || []}
+                  locationName={cp.location_name}
+                  onSave={(newAnswers) => saveField("riddles", riddle.id, "alternate_answers", newAnswers)}
+                  saving={saving}
+                  isLocked={isLocked}
+                />
+
+                {/* 3 Sub-Hints Section */}
+                <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/10 p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-[#00E5FF] text-[11px] font-mono uppercase tracking-widest font-semibold flex items-center gap-1.5">
+                      <span>💡</span> 3 CAMPUS SUB-HINTS (PROGRESSIVE PARTICIPANT CLUES)
+                    </p>
+                    <span className="text-[10px] font-mono text-dormant uppercase">
+                      Hints Broadcast
+                    </span>
+                  </div>
+                  <p className="text-dormant text-xs font-body mb-3">
+                    Configure up to 3 progressive clues that participants can decrypt when stuck to help them navigate campus to this checkpoint.
+                  </p>
+                  <div className="space-y-2">
+                    {[0, 1, 2].map((idx) => {
+                      const hintLabels = [
+                        "Sub-Hint 1 (General Area / Zone Clue)",
+                        "Sub-Hint 2 (Landmark / Visual Detail Clue)",
+                        "Sub-Hint 3 (Direct Location Orientation Clue)",
+                      ];
+                      const currentHints = riddle.hints || [];
+                      const currentVal = currentHints[idx] || "";
+                      return (
+                        <EditableField
+                          key={idx}
+                          label={`[CLUE 0${idx + 1}] ${hintLabels[idx]}`}
+                          value={currentVal}
+                          fieldKey={`riddle-${riddle.id}-hint-${idx}`}
+                          editingField={editingField}
+                          editValue={editValue}
+                          setEditingField={setEditingField}
+                          setEditValue={setEditValue}
+                          onSave={(val) => {
+                            const updated = [...currentHints];
+                            while (updated.length < 3) updated.push("");
+                            updated[idx] = val.trim();
+                            saveField("riddles", riddle.id, "hints", updated);
+                          }}
+                          saving={saving}
+                          isLocked={isLocked}
+                          multiline
+                          compact
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Question */}
@@ -373,6 +438,114 @@ function EditableField({
       >
         {value || "[None]"}
       </button>
+    </div>
+  );
+}
+
+function AlternateAnswersEditor({
+  answers = [],
+  locationName,
+  onSave,
+  saving,
+  isLocked,
+}: {
+  answers: string[];
+  locationName: string;
+  onSave: (newAnswers: string[]) => void;
+  saving: boolean;
+  isLocked?: boolean;
+}) {
+  const [newAnswer, setNewAnswer] = useState("");
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newAnswer.trim();
+    if (!trimmed) return;
+    const exists = answers.some((a) => a.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      alert(`"${trimmed}" is already added to the alternative answers list.`);
+      return;
+    }
+    if (trimmed.toLowerCase() === locationName.trim().toLowerCase()) {
+      alert(`"${trimmed}" is already the primary Checkpoint Location Name.`);
+      return;
+    }
+    onSave([...answers, trimmed]);
+    setNewAnswer("");
+  };
+
+  const handleRemove = (targetIndex: number) => {
+    if (isLocked) return;
+    const updated = answers.filter((_, idx) => idx !== targetIndex);
+    onSave(updated);
+  };
+
+  return (
+    <div className="rounded-xl border border-signal/25 bg-void/30 p-4">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-1 mb-2">
+        <p className="text-signal text-[11px] font-mono uppercase tracking-widest font-semibold flex items-center gap-1.5">
+          <span>🎯</span> ACCEPTED ALTERNATIVE ANSWERS (ARRAY)
+        </p>
+        <span className="text-[10px] font-mono text-dormant uppercase">
+          Dynamic Matching List
+        </span>
+      </div>
+
+      <p className="text-dormant text-xs font-body mb-3">
+        Participants entering either the Checkpoint Location Name (<strong>&ldquo;{locationName}&rdquo;</strong>) OR any of the alternative answers below will pass the riddle and unlock the secret pass code screen.
+      </p>
+
+      {/* Answer badges */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-dormant/20 border border-dormant/30 text-text font-mono text-xs">
+          <span className="text-signal font-bold">[PRIMARY]:</span> {locationName}
+        </span>
+        {answers.map((ans, idx) => (
+          <span
+            key={idx}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-signal/10 border border-signal/30 text-signal font-mono text-xs shadow-[0_0_10px_rgba(255,30,86,0.1)]"
+          >
+            <span>{ans}</span>
+            {!isLocked && (
+              <button
+                type="button"
+                onClick={() => handleRemove(idx)}
+                disabled={saving}
+                className="text-dormant hover:text-white transition-colors ml-1 font-bold disabled:opacity-50"
+                title="Remove this alternative answer"
+              >
+                ✕
+              </button>
+            )}
+          </span>
+        ))}
+        {answers.length === 0 && (
+          <span className="text-dormant text-xs font-mono italic flex items-center py-1">
+            No alternate answers yet. Add variations like &ldquo;Library&rdquo;, &ldquo;Library Gate&rdquo;, etc. below.
+          </span>
+        )}
+      </div>
+
+      {/* Add new alternate answer input */}
+      {!isLocked && (
+        <form onSubmit={handleAdd} className="flex gap-2">
+          <input
+            type="text"
+            value={newAnswer}
+            onChange={(e) => setNewAnswer(e.target.value)}
+            placeholder="Type alternate answer (e.g. Library, Library Gate, Entrance)..."
+            disabled={saving}
+            className="flex-1 rounded-lg border border-dormant/20 bg-void/50 px-3 py-2 text-text font-mono text-xs focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal/30"
+          />
+          <button
+            type="submit"
+            disabled={saving || !newAnswer.trim()}
+            className="rounded-lg px-4 py-2 text-xs font-mono bg-signal text-void hover:brightness-110 disabled:opacity-50 font-bold uppercase tracking-wider transition-all"
+          >
+            {saving ? "SAVING..." : "+ ADD ANSWER"}
+          </button>
+        </form>
+      )}
     </div>
   );
 }
