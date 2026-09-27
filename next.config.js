@@ -3,8 +3,8 @@
 const cspHeader = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com data:",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+  "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:",
   "img-src 'self' data: blob: https://*.googleusercontent.com https://googleusercontent.com https://*.google.com https://google.com https://*.supabase.co",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://judge0-ce.p.rapidapi.com https://*.rapidapi.com https://cdn.jsdelivr.net",
   "worker-src 'self' blob:",

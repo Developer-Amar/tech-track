@@ -277,7 +277,7 @@ export default function CodeEditor({
             snippetSuggestions: "inline",
             padding: { top: 12, bottom: 12 },
             cursorBlinking: "blink",
-            cursorSmoothCaretAnimation: "on",
+            cursorSmoothCaretAnimation: "off",
             cursorStyle: "line",
             cursorWidth: 2,
           }
@@ -306,7 +306,7 @@ export default function CodeEditor({
             acceptSuggestionOnEnter: "off",
             padding: { top: 12, bottom: 12 },
             cursorBlinking: "blink",
-            cursorSmoothCaretAnimation: "on",
+            cursorSmoothCaretAnimation: "off",
             cursorStyle: "line",
             cursorWidth: 2,
           },
