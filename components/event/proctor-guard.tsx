@@ -219,6 +219,11 @@ export default function ProctorGuard({
     const handleVisibilityChange = () => {
       if (document.hidden) {
         reportStrike("tab_switch");
+      } else {
+        // Returned to tab: ensure hadFocusRef is primed so subsequent window/desktop switches trigger reliably
+        if (document.hasFocus()) {
+          hadFocusRef.current = true;
+        }
       }
     };
 

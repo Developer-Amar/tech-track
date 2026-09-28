@@ -3,6 +3,150 @@ import { NextResponse } from "next/server";
 import { inspectPastePayload } from "@/lib/proctor/ai-detector";
 
 /**
+ * Robust proctoring state lookup supporting both (unit_id, checkpoint_id)
+ * and (unit_id, round_number) unique constraint schemas across databases.
+ */
+async function getProctorState(
+  admin: ReturnType<typeof createAdminClient>,
+  unitId: string,
+  roundNumber: number,
+  checkpointId: string | null
+) {
+  // 1. Try by round_number first
+  const { data: byRound, error: errRound } = await admin
+    .from("proctoring_state")
+    .select("*")
+    .eq("unit_id", unitId)
+    .eq("round_number", roundNumber)
+    .maybeSingle();
+
+  if (!errRound && byRound) return byRound;
+
+  // 2. Fallback: try by checkpoint_id
+  if (checkpointId) {
+    const { data: byCp, error: errCp } = await admin
+      .from("proctoring_state")
+      .select("*")
+      .eq("unit_id", unitId)
+      .eq("checkpoint_id", checkpointId)
+      .maybeSingle();
+
+    if (!errCp && byCp) return byCp;
+  }
+
+  // 3. Fallback: query any state for unit
+  const { data: anyState } = await admin
+    .from("proctoring_state")
+    .select("*")
+    .eq("unit_id", unitId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return anyState ?? null;
+}
+
+/**
+ * Persists strike updates using multi-strategy fallback:
+ * 1. Update by PK id (guaranteed to bypass onConflict schema differences)
+ * 2. Upsert by (unit_id, round_number)
+ * 3. Upsert by (unit_id, checkpoint_id)
+ * 4. Plain insert
+ */
+async function persistProctorStrike(
+  admin: ReturnType<typeof createAdminClient>,
+  existingState: any,
+  unitId: string,
+  roundNumber: number,
+  checkpointId: string | null,
+  newSwitches: number,
+  limit: number,
+  willLockOut: boolean,
+  nowIso: string
+) {
+  // Strategy 1: Direct update by PK id if existing row was found
+  if (existingState?.id) {
+    const updatePayload: Record<string, unknown> = {
+      tab_switches: newSwitches,
+      tab_switch_limit: limit,
+      locked_out: willLockOut,
+      flagged_at: nowIso,
+    };
+    if (existingState.round_number === undefined || existingState.round_number === null) {
+      updatePayload.round_number = roundNumber;
+    }
+    if (checkpointId && (existingState.checkpoint_id === undefined || existingState.checkpoint_id === null)) {
+      updatePayload.checkpoint_id = checkpointId;
+    }
+
+    const { data, error } = await admin
+      .from("proctoring_state")
+      .update(updatePayload)
+      .eq("id", existingState.id)
+      .select()
+      .single();
+
+    if (!error && data) return data;
+    console.error("Direct update by id failed, attempting upsert fallback:", error?.message);
+  }
+
+  // Strategy 2: Upsert by (unit_id, round_number)
+  const roundPayload: Record<string, unknown> = {
+    unit_id: unitId,
+    round_number: roundNumber,
+    tab_switches: newSwitches,
+    tab_switch_limit: limit,
+    locked_out: willLockOut,
+    flagged_at: nowIso,
+  };
+  if (checkpointId) roundPayload.checkpoint_id = checkpointId;
+
+  const { data: dataRound, error: errRound } = await admin
+    .from("proctoring_state")
+    .upsert(roundPayload, { onConflict: "unit_id,round_number" })
+    .select()
+    .single();
+
+  if (!errRound && dataRound) return dataRound;
+
+  // Strategy 3: Upsert by (unit_id, checkpoint_id)
+  if (checkpointId) {
+    const cpPayload = {
+      unit_id: unitId,
+      checkpoint_id: checkpointId,
+      tab_switches: newSwitches,
+      tab_switch_limit: limit,
+      locked_out: willLockOut,
+      flagged_at: nowIso,
+    };
+    const { data: dataCp, error: errCp } = await admin
+      .from("proctoring_state")
+      .upsert(cpPayload, { onConflict: "unit_id,checkpoint_id" })
+      .select()
+      .single();
+
+    if (!errCp && dataCp) return dataCp;
+  }
+
+  // Strategy 4: Plain insert
+  const { data: inserted } = await admin
+    .from("proctoring_state")
+    .insert({
+      unit_id: unitId,
+      round_number: roundNumber,
+      ...(checkpointId ? { checkpoint_id: checkpointId } : {}),
+      tab_switches: newSwitches,
+      tab_switch_limit: limit,
+      locked_out: willLockOut,
+      flagged_at: nowIso,
+    })
+    .select()
+    .single();
+
+  return inserted ?? null;
+}
+
+/**
  * POST /api/event/proctor/report
  *
  * Proctoring reporting & AI Behavioral telemetry API:
@@ -118,15 +262,8 @@ export async function POST(request: Request) {
       { onConflict: "unit_id,round_number" }
     );
 
-    // Return current proctoring state (keyed by checkpoint_id, not round_number)
-    const { data: state } = checkpointId
-      ? await admin
-          .from("proctoring_state")
-          .select("*")
-          .eq("unit_id", membership.unit_id)
-          .eq("checkpoint_id", checkpointId)
-          .maybeSingle()
-      : { data: null };
+    // Return current proctoring state
+    const state = await getProctorState(admin, membership.unit_id, roundNumber, checkpointId);
 
     return NextResponse.json({
       active_device_blocked: false,
@@ -167,43 +304,26 @@ export async function POST(request: Request) {
     severity = "high";
   }
 
-  // Fetch or initialize proctoring state (keyed by checkpoint_id)
-  const { data: state } = checkpointId
-    ? await admin
-        .from("proctoring_state")
-        .select("*")
-        .eq("unit_id", membership.unit_id)
-        .eq("checkpoint_id", checkpointId)
-        .maybeSingle()
-    : { data: null };
+  // Fetch current proctoring state (robust multi-field lookup)
+  const state = await getProctorState(admin, membership.unit_id, roundNumber, checkpointId);
 
   const currentSwitches = state?.tab_switches ?? 0;
   const limit = state?.tab_switch_limit ?? 3;
   const newSwitches = currentSwitches + 1;
   const willLockOut = newSwitches >= limit;
 
-  // Upsert using the actual unique constraint (unit_id, checkpoint_id)
-  const { data: updatedState, error: stateError } = checkpointId
-    ? await admin
-        .from("proctoring_state")
-        .upsert(
-          {
-            unit_id: membership.unit_id,
-            checkpoint_id: checkpointId,
-            tab_switches: newSwitches,
-            tab_switch_limit: limit,
-            locked_out: willLockOut,
-            flagged_at: now.toISOString(),
-          },
-          { onConflict: "unit_id,checkpoint_id" }
-        )
-        .select()
-        .single()
-    : { data: null, error: null };
-
-  if (stateError) {
-    console.error("Failed to update proctoring_state:", stateError.message);
-  }
+  // Persist updated strike count (updates by PK id if existing, avoiding onConflict 42P10 errors)
+  const updatedState = await persistProctorStrike(
+    admin,
+    state,
+    membership.unit_id,
+    roundNumber,
+    checkpointId,
+    newSwitches,
+    limit,
+    willLockOut,
+    now.toISOString()
+  );
 
   // Record rich event in proctoring_events
   await admin.from("proctoring_events").insert({
@@ -271,14 +391,8 @@ export async function GET(request: Request) {
 
   const checkpointId = checkpoint?.id ?? null;
 
-  const { data: state } = checkpointId
-    ? await admin
-        .from("proctoring_state")
-        .select("*")
-        .eq("unit_id", membership.unit_id)
-        .eq("checkpoint_id", checkpointId)
-        .maybeSingle()
-    : { data: null };
+  // Look up proctoring state robustly
+  const state = await getProctorState(admin, membership.unit_id, roundNumber, checkpointId);
 
   return NextResponse.json({
     unit_id: membership.unit_id,
