@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { runAgainstTestCases, type SupportedLanguage } from "@/lib/judge0/client";
 import { analyzeCodeForAI } from "@/lib/proctor/ai-detector";
 
 // In-memory concurrency locks and rate-limiting cooldown per team (TT-10)
@@ -36,6 +37,11 @@ export async function POST(request: Request) {
       { error: `Code exceeds maximum allowed size of ${MAX_CODE_BYTES / 1000} KB.` },
       { status: 400 }
     );
+  }
+
+  const validLanguages: SupportedLanguage[] = ["c", "cpp", "python", "java"];
+  if (!validLanguages.includes(body.language as SupportedLanguage)) {
+    return NextResponse.json({ error: `Unsupported language: ${body.language}` }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -119,7 +125,7 @@ export async function POST(request: Request) {
 
   const { data: testCases } = await admin
     .from("round_2_test_cases")
-    .select("id, input, expected_output")
+    .select("id, input, expected_output, is_visible")
     .eq("problem_id", body.problem_id);
 
   if (!testCases?.length) {
@@ -133,49 +139,22 @@ export async function POST(request: Request) {
     .eq("unit_id", membership.unit_id)
     .eq("problem_id", body.problem_id);
 
-  // Language ID mapping for Judge0
-  const langMap: Record<string, number> = { c: 50, cpp: 54, python: 71, java: 62 };
-  const langId = langMap[body.language];
-  if (!langId) return NextResponse.json({ error: "Unsupported language." }, { status: 400 });
-
   // ── Run against all test cases with concurrency lock ─────────────────
   activeRound2Submissions.add(unitId);
 
-  let allPassed = true;
-  const results: { input: string; expected: string; actual: string; passed: boolean }[] = [];
-
-  const judge0Url = process.env.JUDGE0_API_URL || "https://judge0-ce.p.rapidapi.com";
-  const judge0Key = process.env.JUDGE0_API_KEY || "";
-
+  let runResult;
   try {
-    for (const tc of testCases) {
-      try {
-        const submitRes = await fetch(`${judge0Url}/submissions?base64_encoded=true&wait=true`, {
-          method: "POST",
-          signal: AbortSignal.timeout(10000),
-          headers: {
-            "Content-Type": "application/json",
-            "X-RapidAPI-Key": judge0Key,
-            "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-          },
-          body: JSON.stringify({
-            source_code: Buffer.from(body.code).toString("base64"),
-            language_id: langId,
-            stdin: Buffer.from(tc.input).toString("base64"),
-            expected_output: Buffer.from(tc.expected_output).toString("base64"),
-          }),
-        });
-
-        const result = await submitRes.json();
-        const actual = result.stdout ? Buffer.from(result.stdout, "base64").toString() : "";
-        const passed = result.status?.id === 3; // Accepted
-        results.push({ input: tc.input, expected: tc.expected_output, actual: actual.trim(), passed });
-        if (!passed) allPassed = false;
-      } catch (err) {
-        allPassed = false;
-        results.push({ input: tc.input, expected: tc.expected_output, actual: "Execution error", passed: false });
-      }
-    }
+    runResult = await runAgainstTestCases(
+      body.code,
+      body.language as SupportedLanguage,
+      testCases
+    );
+  } catch (err) {
+    console.error("Judge0 execution error in Round 2:", err);
+    return NextResponse.json(
+      { error: "Code execution service error. Please try again." },
+      { status: 502 }
+    );
   } finally {
     activeRound2Submissions.delete(unitId);
     lastRound2SubmissionTime.set(unitId, Date.now());
@@ -194,7 +173,7 @@ export async function POST(request: Request) {
     problem_id: body.problem_id,
     code: body.code,
     language: body.language,
-    passed: allPassed,
+    passed: runResult.all_passed,
     attempt_number: (prevAttempts ?? 0) + 1,
     ai_score: aiResult.score,
     ai_flagged: aiResult.flagged,
@@ -219,7 +198,7 @@ export async function POST(request: Request) {
   }
 
   // Update progress
-  if (allPassed) {
+  if (runResult.all_passed) {
     await admin.from("round_2_progress").upsert({
       unit_id: unitId,
       problem_id: body.problem_id,
@@ -229,13 +208,22 @@ export async function POST(request: Request) {
     }, { onConflict: "unit_id,problem_id" });
   }
 
+  const clientResults = runResult.results.map((r) => ({
+    passed: r.passed,
+    is_visible: r.is_visible,
+    input: r.is_visible ? r.input : null,
+    expected_output: r.is_visible ? r.expected_output : null,
+    actual_output: r.is_visible ? r.actual_output : null,
+    error: r.is_visible ? r.error : (r.error ? "Error on hidden test case" : null),
+    status: r.status_description,
+  }));
+
   return NextResponse.json({
     success: true,
-    passed: allPassed,
-    results: results.map(r => ({
-      passed: r.passed,
-      // Only show details for visible test cases
-    })),
-    message: allPassed ? "All test cases passed!" : "Some test cases failed.",
+    passed: runResult.all_passed,
+    verdict: runResult.verdict,
+    compile_error: runResult.compile_error,
+    results: clientResults,
+    message: runResult.all_passed ? "All test cases passed!" : (runResult.verdict || "Some test cases failed."),
   });
 }

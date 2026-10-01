@@ -8,6 +8,7 @@ import {
   Code, CheckCircle, Circle, Trophy, Loader2, Play, AlertTriangle
 } from "lucide-react";
 import ProctorGuard from "@/components/event/proctor-guard";
+import { STARTER_TEMPLATES } from "@/lib/ide-templates";
 
 interface R2Problem {
   id: string;
@@ -38,10 +39,24 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
   const [progress, setProgress] = useState<R2Progress[]>([]);
   const [activeProblem, setActiveProblem] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(STARTER_TEMPLATES["python"] ?? "");
   const [language, setLanguage] = useState("python");
   const [submitting, setSubmitting] = useState(false);
-  const [submitResult, setSubmitResult] = useState<{ passed: boolean; message: string } | null>(null);
+  const [submitResult, setSubmitResult] = useState<{
+    passed: boolean;
+    message: string;
+    verdict?: string;
+    compile_error?: string | null;
+    results?: Array<{
+      passed: boolean;
+      is_visible: boolean;
+      input: string | null;
+      expected_output: string | null;
+      actual_output: string | null;
+      error: string | null;
+      status: string;
+    }>;
+  } | null>(null);
 
   const supabase = createClient();
 
@@ -69,6 +84,20 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
     return () => { supabase.removeChannel(channel); };
   }, [fetchData, supabase, unitId]);
 
+  const handleLanguageChange = (newLang: string) => {
+    setLanguage(newLang);
+    const currentIsTemplate = Object.values(STARTER_TEMPLATES).some(
+      t => t.trim() === code.trim()
+    );
+    if (!code.trim() || currentIsTemplate) {
+      setCode(STARTER_TEMPLATES[newLang] ?? "");
+    }
+  };
+
+  const handleResetTemplate = () => {
+    setCode(STARTER_TEMPLATES[language] ?? "");
+  };
+
   const submitCode = async () => {
     if (!activeProblem || !code.trim()) return;
     setSubmitting(true);
@@ -80,7 +109,13 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
         body: JSON.stringify({ problem_id: activeProblem, code, language }),
       });
       const data = await res.json();
-      setSubmitResult({ passed: data.passed ?? false, message: data.message ?? (res.ok ? 'Submitted' : data.error ?? 'Failed') });
+      setSubmitResult({
+        passed: data.passed ?? false,
+        message: data.message ?? (res.ok ? 'Submitted' : data.error ?? 'Failed'),
+        verdict: data.verdict,
+        compile_error: data.compile_error,
+        results: data.results,
+      });
       if (data.passed) {
         await fetchData();
       }
@@ -132,7 +167,9 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
               key={problem.id}
               onClick={() => {
                 setActiveProblem(isActive ? null : problem.id);
-                setCode("");
+                if (!isActive) {
+                  setCode(STARTER_TEMPLATES[language] ?? "");
+                }
                 setSubmitResult(null);
               }}
               disabled={isPassed}
@@ -187,13 +224,13 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
                 {selectedProblem.sample_input && (
                   <div className="rounded-lg border border-white/[0.06] bg-void/40 p-3">
                     <p className="font-mono text-[10px] text-dormant uppercase mb-1">Sample Input</p>
-                    <pre className="font-mono text-xs sm:text-sm text-text">{selectedProblem.sample_input}</pre>
+                    <pre className="font-mono text-xs sm:text-sm text-text whitespace-pre-wrap">{selectedProblem.sample_input}</pre>
                   </div>
                 )}
                 {selectedProblem.sample_output && (
                   <div className="rounded-lg border border-white/[0.06] bg-void/40 p-3">
                     <p className="font-mono text-[10px] text-dormant uppercase mb-1">Expected Output</p>
-                    <pre className="font-mono text-xs sm:text-sm text-signal">{selectedProblem.sample_output}</pre>
+                    <pre className="font-mono text-xs sm:text-sm text-signal whitespace-pre-wrap">{selectedProblem.sample_output}</pre>
                   </div>
                 )}
               </div>
@@ -201,19 +238,28 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
 
             {/* Inline Code Editor */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <label className="font-mono text-[10px] text-dormant uppercase flex items-center gap-2">
                   <Code className="w-3 h-3" /> Your Solution
                 </label>
-                <select
-                  value={language}
-                  onChange={e => setLanguage(e.target.value)}
-                  className="rounded-lg border border-white/[0.08] bg-void/60 px-3 py-1.5 text-text font-mono text-xs focus:outline-none min-h-[36px]"
-                >
-                  {LANGUAGES.map(l => (
-                    <option key={l.value} value={l.value} className="bg-void">{l.label}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleResetTemplate}
+                    className="px-2.5 py-1 rounded border border-white/10 hover:border-signal/40 bg-void/40 text-dormant hover:text-text font-mono text-[11px] uppercase tracking-wider transition-all"
+                    title={`Insert ${language.toUpperCase()} starter template`}
+                  >
+                    📋 Starter Template
+                  </button>
+                  <select
+                    value={language}
+                    onChange={e => handleLanguageChange(e.target.value)}
+                    className="rounded-lg border border-white/[0.08] bg-void/60 px-3 py-1.5 text-text font-mono text-xs focus:outline-none min-h-[36px]"
+                  >
+                    {LANGUAGES.map(l => (
+                      <option key={l.value} value={l.value} className="bg-void">{l.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <textarea
                 value={code}
@@ -224,25 +270,72 @@ export default function Round2Arena({ unitId }: { unitId: string }) {
                 spellCheck={false}
               />
 
-              {/* Submit */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <button
-                  onClick={submitCode}
-                  disabled={submitting || !code.trim()}
-                  className="min-h-[44px] btn-cyber px-6 py-2.5 rounded-lg text-xs uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-40 w-full sm:w-auto"
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                  Submit Solution
-                </button>
+              {/* Submit & Result */}
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <button
+                    onClick={submitCode}
+                    disabled={submitting || !code.trim()}
+                    className="min-h-[44px] btn-cyber px-6 py-2.5 rounded-lg text-xs uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-40 w-full sm:w-auto"
+                  >
+                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                    Submit Solution
+                  </button>
 
-                {submitResult && (
-                  <div className={`rounded-lg border px-4 py-2 text-xs sm:text-sm font-mono ${
-                    submitResult.passed
-                      ? 'border-signal/30 bg-signal/5 text-signal'
-                      : 'border-danger/30 bg-danger/5 text-danger'
-                  }`}>
-                    {submitResult.passed ? <CheckCircle className="w-4 h-4 inline mr-2" /> : <AlertTriangle className="w-4 h-4 inline mr-2" />}
-                    {submitResult.message}
+                  {submitResult && (
+                    <div className={`rounded-lg border px-4 py-2 text-xs sm:text-sm font-mono ${
+                      submitResult.passed
+                        ? 'border-signal/30 bg-signal/5 text-signal'
+                        : 'border-danger/30 bg-danger/5 text-danger'
+                    }`}>
+                      {submitResult.passed ? <CheckCircle className="w-4 h-4 inline mr-2" /> : <AlertTriangle className="w-4 h-4 inline mr-2" />}
+                      {submitResult.message}
+                    </div>
+                  )}
+                </div>
+
+                {/* Compilation Error Output */}
+                {submitResult?.compile_error && (
+                  <div className="rounded-lg border border-danger/30 bg-danger/5 p-3 sm:p-4 font-mono text-xs text-danger">
+                    <p className="font-semibold uppercase tracking-wider text-[10px] mb-1">Compilation / Syntax Error</p>
+                    <pre className="whitespace-pre-wrap text-[11px] opacity-90">{submitResult.compile_error}</pre>
+                  </div>
+                )}
+
+                {/* Test Cases Output */}
+                {submitResult?.results && submitResult.results.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    <p className="font-mono text-[10px] text-dormant uppercase tracking-wider">Test Results</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {submitResult.results.map((r, idx) => (
+                        <div
+                          key={idx}
+                          className={`rounded-lg border p-3 font-mono text-xs ${
+                            r.passed
+                              ? 'border-signal/20 bg-signal/5 text-text'
+                              : 'border-danger/20 bg-danger/5 text-text'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] text-dormant uppercase">
+                              {r.is_visible ? `Test Case ${idx + 1}` : `Hidden Test Case ${idx + 1}`}
+                            </span>
+                            <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                              r.passed ? 'bg-signal/20 text-signal' : 'bg-danger/20 text-danger'
+                            }`}>
+                              {r.status || (r.passed ? 'PASSED' : 'FAILED')}
+                            </span>
+                          </div>
+                          {r.is_visible && (
+                            <div className="space-y-1 text-[11px] mt-1 text-dormant">
+                              {r.input && <div><span className="text-muted">Input: </span><code className="text-text">{r.input}</code></div>}
+                              {r.expected_output && <div><span className="text-muted">Expected: </span><code className="text-signal">{r.expected_output}</code></div>}
+                              {r.actual_output && <div><span className="text-muted">Output: </span><code className="text-text">{r.actual_output}</code></div>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

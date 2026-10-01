@@ -5,8 +5,9 @@ export const STARTER_TEMPLATES: Record<string, string> = {
   python: `import sys
 
 def main():
-    # Read input from standard input
-    # input_data = sys.stdin.read().split()
+    # Read input from standard input:
+    # Single line: line = sys.stdin.readline().strip()
+    # All tokens:  tokens = sys.stdin.read().split()
     pass
 
 if __name__ == "__main__":
@@ -14,6 +15,8 @@ if __name__ == "__main__":
 `,
 
   c: `#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 int main() {
     // Write your solution here
@@ -23,6 +26,10 @@ int main() {
 `,
 
   cpp: `#include <iostream>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <algorithm>
 using namespace std;
 
 int main() {

@@ -7,9 +7,12 @@
  * Built in Phase 4 (Event Engine).
  */
 
-const JUDGE0_API_URL = process.env.JUDGE0_API_URL!;
-const JUDGE0_API_KEY = process.env.JUDGE0_API_KEY!;
-const JUDGE0_API_HOST = "judge0-ce.p.rapidapi.com";
+function getJudge0Config() {
+  const url = (process.env.JUDGE0_API_URL || "https://judge0-ce.p.rapidapi.com").replace(/\/+$/, "");
+  const key = process.env.JUDGE0_API_KEY || "";
+  const host = "judge0-ce.p.rapidapi.com";
+  return { url, key, host };
+}
 
 /**
  * Judge0 language IDs for our four supported languages.
@@ -78,6 +81,7 @@ export interface RunResult {
 export async function executeCode(
   request: Judge0SubmitRequest
 ): Promise<Judge0SubmissionResult> {
+  const { url, key, host } = getJudge0Config();
   const languageId = LANGUAGE_IDS[request.language];
   if (!languageId) {
     throw new Error(`Unsupported language: ${request.language}`);
@@ -88,14 +92,14 @@ export async function executeCode(
   const stdinB64 = Buffer.from(request.stdin ?? "").toString("base64");
 
   const response = await fetch(
-    `${JUDGE0_API_URL}/submissions?base64_encoded=true&wait=true`,
+    `${url}/submissions?base64_encoded=true&wait=true`,
     {
       method: "POST",
       signal: AbortSignal.timeout(10000),
       headers: {
         "Content-Type": "application/json",
-        "X-RapidAPI-Key": JUDGE0_API_KEY,
-        "X-RapidAPI-Host": JUDGE0_API_HOST,
+        "X-RapidAPI-Key": key,
+        "X-RapidAPI-Host": host,
       },
       body: JSON.stringify({
         source_code: sourceB64,
@@ -129,11 +133,61 @@ export async function executeCode(
 }
 
 /**
+ * Normalize multiline output by:
+ * 1. Converting all CRLF/CR to LF
+ * 2. Trimming trailing whitespace from each line
+ * 3. Trimming leading/trailing empty lines
+ */
+export function normalizeOutput(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .trim();
+}
+
+/**
+ * Compare actual stdout with expected output.
+ * Handles:
+ * - Cross-platform line-endings (\r\n vs \n)
+ * - Trailing whitespace on lines
+ * - Fibonacci Question 6 N=7 tolerance (PDF has '8 5 3 1 1 0', math Fibonacci has '8 5 3 2 1 1 0')
+ */
+export function compareOutputs(
+  actual: string | null,
+  expected: string,
+  input?: string
+): boolean {
+  if (!actual && !expected) return true;
+  if (!actual) return false;
+
+  const normActual = normalizeOutput(actual);
+  const normExpected = normalizeOutput(expected);
+
+  if (normActual === normExpected) return true;
+
+  // Handle Question 6 (Reverse Fibonacci N=7) tolerance:
+  // PDF shows '8 5 3 1 1 0' (omitting 2) while standard 0-indexed Fibonacci has '8 5 3 2 1 1 0'
+  if (
+    input?.trim() === "7" &&
+    (normExpected === "8 5 3 1 1 0" || normExpected === "8 5 3 2 1 1 0") &&
+    (normActual === "8 5 3 1 1 0" || normActual === "8 5 3 2 1 1 0")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Run code against an array of test cases and return per-case results.
  *
  * - Runs test cases sequentially (RapidAPI rate limits).
  * - Short-circuits on compilation error (same error for all languages).
- * - Trims whitespace from stdout before comparison.
+ * - Normalizes whitespace and line endings for cross-platform reliability.
  */
 export async function runAgainstTestCases(
   code: string,
@@ -166,9 +220,10 @@ export async function runAgainstTestCases(
         return { all_passed: false, verdict: "Compilation Error", results, compile_error: compileError };
       }
 
-      const actualOutput = (result.stdout ?? "").trim();
-      const expectedOutput = tc.expected_output.trim();
-      const passed = result.status.id === 3 && actualOutput === expectedOutput;
+      const rawActual = result.stdout ?? "";
+      const actualOutput = normalizeOutput(rawActual);
+      const expectedOutput = normalizeOutput(tc.expected_output);
+      const passed = result.status.id === 3 && compareOutputs(rawActual, tc.expected_output, tc.input);
 
       let error: string | null = null;
       if (result.status.id !== 3 && result.status.id !== 4) {
@@ -179,7 +234,7 @@ export async function runAgainstTestCases(
       results.push({
         test_case_id: tc.id,
         input: tc.input,
-        expected_output: tc.expected_output,
+        expected_output: expectedOutput,
         actual_output: actualOutput || null,
         passed,
         is_visible: tc.is_visible,
