@@ -30,7 +30,8 @@ interface QuestionDef {
   }>;
 }
 
-const QUESTIONS: QuestionDef[] = [
+// Exactly 10 questions from the PDF for Round 1 (Checkpoints 1..10)
+const ROUND_1_QUESTIONS: QuestionDef[] = [
   {
     order_index: 1,
     title: "Reverse a String",
@@ -182,25 +183,56 @@ const QUESTIONS: QuestionDef[] = [
       { input: "keep moving forward", expected_output: "forward", is_visible: false },
     ],
   },
+];
+
+// Exactly 3 LeetCode problems for Round 2 (Final Arena)
+const ROUND_2_PROBLEMS = [
   {
-    order_index: 11,
-    title: "Check Anagram",
-    difficulty: "easy",
+    order_index: 1,
+    title: "Two Sum",
+    difficulty: "easy" as const,
     points: 100,
-    prompt: "Write a program that reads two strings (on separate lines) and prints \"Anagram\" if they contain exactly the same characters with the same frequencies, otherwise prints \"Not Anagram\".",
-    sample_input: "listen\nsilent",
-    sample_output: "Anagram",
+    prompt: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice. You can return the answer in any order.",
+    sample_input: "nums = [2,7,11,15], target = 9",
+    sample_output: "[0,1]",
     test_cases: [
-      { input: "listen\nsilent", expected_output: "Anagram", is_visible: true },
-      { input: "hello\nworld", expected_output: "Not Anagram", is_visible: false },
-      { input: "triangle\nintegral", expected_output: "Anagram", is_visible: false },
-      { input: "rat\ncar", expected_output: "Not Anagram", is_visible: false },
+      { input: "nums = [2,7,11,15], target = 9", expected_output: "[0,1]", is_visible: true },
+      { input: "nums = [3,2,4], target = 6", expected_output: "[1,2]", is_visible: true },
+      { input: "nums = [3,3], target = 6", expected_output: "[0,1]", is_visible: false },
+    ],
+  },
+  {
+    order_index: 2,
+    title: "Merge Intervals",
+    difficulty: "medium" as const,
+    points: 200,
+    prompt: "Given an array of intervals where intervals[i] = [starti, endi], merge all overlapping intervals, and return an array of the non-overlapping intervals that cover all the intervals in the input.",
+    sample_input: "intervals = [[1,3],[2,6],[8,10],[15,18]]",
+    sample_output: "[[1,6],[8,10],[15,18]]",
+    test_cases: [
+      { input: "intervals = [[1,3],[2,6],[8,10],[15,18]]", expected_output: "[[1,6],[8,10],[15,18]]", is_visible: true },
+      { input: "intervals = [[1,4],[4,5]]", expected_output: "[[1,5]]", is_visible: true },
+      { input: "intervals = [[1,4],[2,3]]", expected_output: "[[1,4]]", is_visible: false },
+    ],
+  },
+  {
+    order_index: 3,
+    title: "Trapping Rain Water",
+    difficulty: "hard" as const,
+    points: 300,
+    prompt: "Given n non-negative integers representing an elevation map where the width of each bar is 1, compute how much water it can trap after raining.",
+    sample_input: "height = [0,1,0,2,1,0,1,3,2,1,2,1]",
+    sample_output: "6",
+    test_cases: [
+      { input: "height = [0,1,0,2,1,0,1,3,2,1,2,1]", expected_output: "6", is_visible: true },
+      { input: "height = [4,2,0,3,2,5]", expected_output: "9", is_visible: true },
+      { input: "height = [4,2,3]", expected_output: "1", is_visible: false },
     ],
   },
 ];
 
 async function main() {
-  console.log("=== Setting up 10 Coding Questions in Supabase ===");
+  console.log("=== Setting up 10 Round 1 Questions & 3 Round 2 LeetCode Problems ===");
 
   // 1. Ensure checkpoints 1..10 exist
   const { data: existingCheckpoints, error: cpErr } = await supabase
@@ -235,12 +267,11 @@ async function main() {
   }
 
   // 2. Set up Round 1 coding_questions and test_cases (Questions 1..10)
-  console.log("\n--- Populating Round 1 coding_questions & test_cases ---");
+  console.log("\n--- Populating Round 1 coding_questions & test_cases (10 Questions) ---");
   for (let i = 1; i <= 10; i++) {
-    const qDef = QUESTIONS.find(q => q.order_index === i)!;
+    const qDef = ROUND_1_QUESTIONS.find(q => q.order_index === i)!;
     const cp = cpMap.get(i)!;
 
-    // Check if coding_question already exists for this checkpoint
     const { data: existingQ } = await supabase
       .from("coding_questions")
       .select("id")
@@ -279,10 +310,8 @@ async function main() {
       questionId = insQ.id;
     }
 
-    // Delete existing test cases for this question
+    // Replace test cases
     await supabase.from("test_cases").delete().eq("question_id", questionId);
-
-    // Insert new test cases
     const tcRows = qDef.test_cases.map(tc => ({
       question_id: questionId,
       input: tc.input,
@@ -297,34 +326,33 @@ async function main() {
     }
   }
 
-  // 3. Set up Round 2 round_2_problems and round_2_test_cases
-  console.log("\n--- Populating Round 2 Arena round_2_problems & round_2_test_cases ---");
-  // Delete old test cases and problems
+  // 3. Set up Round 2 round_2_problems and round_2_test_cases (Exactly 3 LeetCode Problems)
+  console.log("\n--- Populating Round 2 Arena with 3 LeetCode Problems ---");
   await supabase.from("round_2_test_cases").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   await supabase.from("round_2_problems").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
-  for (const qDef of QUESTIONS) {
-    console.log(`Inserting Round 2 Problem ${qDef.order_index}: "${qDef.title}" (${qDef.difficulty}, ${qDef.points} pts)...`);
+  for (const pDef of ROUND_2_PROBLEMS) {
+    console.log(`Inserting Round 2 Problem ${pDef.order_index}: "${pDef.title}" (${pDef.difficulty}, ${pDef.points} pts)...`);
     const { data: problem, error: pErr } = await supabase
       .from("round_2_problems")
       .insert({
-        title: qDef.title,
-        prompt: qDef.prompt,
-        difficulty: qDef.difficulty,
-        points: qDef.points,
-        order_index: qDef.order_index,
-        sample_input: qDef.sample_input,
-        sample_output: qDef.sample_output,
+        title: pDef.title,
+        prompt: pDef.prompt,
+        difficulty: pDef.difficulty,
+        points: pDef.points,
+        order_index: pDef.order_index,
+        sample_input: pDef.sample_input,
+        sample_output: pDef.sample_output,
       })
       .select("id")
       .single();
 
     if (pErr) {
-      console.error(`Error inserting R2 problem ${qDef.order_index}:`, pErr);
+      console.error(`Error inserting R2 problem ${pDef.order_index}:`, pErr);
       continue;
     }
 
-    const r2TcRows = qDef.test_cases.map(tc => ({
+    const r2TcRows = pDef.test_cases.map(tc => ({
       problem_id: problem.id,
       input: tc.input,
       expected_output: tc.expected_output,
@@ -333,9 +361,9 @@ async function main() {
 
     const { error: tcErr } = await supabase.from("round_2_test_cases").insert(r2TcRows);
     if (tcErr) {
-      console.error(`Error inserting R2 test cases for ${qDef.title}:`, tcErr);
+      console.error(`Error inserting R2 test cases for ${pDef.title}:`, tcErr);
     } else {
-      console.log(`  ✓ Inserted ${r2TcRows.length} test cases for ${qDef.title}`);
+      console.log(`  ✓ Inserted ${r2TcRows.length} test cases for ${pDef.title}`);
     }
   }
 
@@ -345,7 +373,7 @@ async function main() {
     .update({ total_rounds: 10, round_1_questions: 10 })
     .eq("id", 1);
 
-  console.log("\n=== Setup Complete! All 10 questions and test cases are live on portal! ===");
+  console.log("\n=== Setup Complete! Exactly 10 Round 1 questions and 3 Round 2 LeetCode problems are live on portal! ===");
 }
 
 main().catch(err => {
