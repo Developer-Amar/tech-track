@@ -5,7 +5,7 @@
 -- the 3 LeetCode problems (Two Sum, Merge Intervals, Trapping Rain Water).
 -- ============================================================
 
-DO $$$
+DO $$
 DECLARE
   cp_id uuid;
   q_id uuid;
@@ -203,6 +203,7 @@ BEGIN
     (q_id, 'keep moving forward', 'forward', false);
 
   -- ── 3. Restore / Ensure Round 2 LeetCode Problems (Exactly 3) ───────
+  DELETE FROM public.round_2_submissions WHERE id IS NOT NULL;
   DELETE FROM public.round_2_test_cases WHERE id IS NOT NULL;
   DELETE FROM public.round_2_problems WHERE id IS NOT NULL;
 
